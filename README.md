@@ -20,11 +20,29 @@
 
 ## Установка
 
-Скопировать `.opencode/` в корень своего проекта (должен быть git-репозиторием):
+Одной командой (та же команда ставит и обновляет):
 
 ```bash
-cp -r .opencode /path/to/your/project/
+curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | bash
 ```
+
+Спросит **харнес** (opencode / claude / оба) и **область** (local — в текущий проект /
+global — для всех). Копирует только свои агенты/скилы, чужие файлы в целевой папке не трогает.
+При local-установке в git-проекте (или если есть `.gitignore`) заносит установленные пути в
+`.gitignore` (идемпотентный блок `# >>> dream-team >>>`).
+
+Неинтерактивно (в пайпе без tty) управляется переменными:
+
+```bash
+DREAM_TEAM_HARNESS=opencode DREAM_TEAM_SCOPE=global \
+  bash -c 'curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | bash'
+# HARNESS: opencode|claude|both (default opencode) · SCOPE: global|local (default local)
+```
+
+Целевые пути: opencode — `~/.config/opencode/{agents,skills}` (global) или `.opencode/…` (local);
+claude — `~/.claude/{agents,skills}` (global) или `.claude/…` (local). claude не тестировался.
+
+Вручную (альтернатива): скопировать `.opencode/` в корень своего проекта.
 
 ## Запуск
 
