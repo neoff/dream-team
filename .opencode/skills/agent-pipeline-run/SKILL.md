@@ -1,47 +1,37 @@
 ---
 name: agent-pipeline-run
-description: 'Точка входа агентского пайплайна. Запускает задачу через primary-агента agent-manager, который раздаёт работу парам ролей-сабагентов.'
+description: 'Точка входа агентского пайплайна dream-team: команды /dt… и dt-cli.sh. Пайплайн ведёт скрипт-оркестратор dt-run.sh, роли — отдельные opencode-агенты.'
 ---
 
 <arguments>$ARGUMENTS</arguments>
 
 <objective>
-Передать задачу Менеджеру пайплайна. Менеджер (opencode primary-агент) раздаёт работу трём
-парам сабагентов (planner+critic, coder+reviewer, tester+debugger) и маршрутизирует между
-ними до done/blocked.
+Запустить или продолжить пайплайн. Это делает человек командой (агенту здесь делать нечего):
+оркестратор `agent-manager/dt-run.sh` сам ведёт пары planner⇄critic, coder⇄reviewer,
+tester⇄debugger до done/blocked.
 </objective>
 
 <how_to_start>
-⚠️ Команды ниже — для ЧЕЛОВЕКА в терминале. Если ты — агент (тем более сам agent-manager),
-НЕ исполняй их через shell: запуск `opencode run` из агента порождает рекурсию (менеджер
-запускает менеджера) и жжёт токены. Агент стартует пайплайн не отсюда, а по своему
-системному промпту (`.opencode/agents/agent-manager.md`).
-
-Менеджер — это АГЕНT (`.opencode/agents/agent-manager.md`, mode: primary), а не skill.
-Человек запускает одним из способов:
+⚠️ Команды ниже — для ЧЕЛОВЕКА. Агент, читающий это, ничего из них не запускает.
 
 ```bash
-# CLI, разово
-opencode run --agent agent-manager "Создать REST API для пользователей с JWT авторизацией"
+# TUI opencode
+/dt-new <задача>         # или /dt-new @prompt.md — задача из файла
+/dt                      # продолжить
+/dt-add <правка>         # правка: прервать текущую роль и перепланировать
+/dt-issue <дополнение>   # в беклог: новый цикл после done
+/dt-status · /dt-log · /dt-stop
 
-# интерактивно: выбрать агента agent-manager и дать задачу
-opencode
-> (switch agent → agent-manager) Создать CLI утилиту CSV→JSON с валидацией схемы
-
-# продолжить прерванный прогон
-opencode run --agent agent-manager "resume"
+# терминал
+alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'
+dt --new @prompt.md      # на переднем плане; dt --bg --new … — в фоне
+dt --status · dt --log -f · dt --stop
 ```
 </how_to_start>
 
-<arguments_spec>
-- `<task>` — описание задачи (всё до первого `--флага`)
-- `resume` (как сообщение) — продолжить прерванный пайплайн из pipeline-state.json
-- `--phase <n>` / `--wave <n>` — точка входа при многофазном плане
-</arguments_spec>
-
 <references>
-- `.opencode/skills/agent-pipeline/workflow.md` — обзор парной архитектуры
-- `.opencode/skills/agent-manager/state-machine.md` — стадии и переходы между парами
+- `.opencode/skills/agent-manager/dt-commands.md` — команды, оркестратор, сторожа, гигиена
+- `.opencode/skills/agent-manager/state-machine.md` — стадии, переходы, формат состояния
 - `.opencode/skills/agent-pipeline/pair-protocol.md` — цикл doer↔critic
 - `.opencode/skills/agent-pipeline/handoff-protocol.md` — handoff и гигиена контекста
 </references>

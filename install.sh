@@ -18,6 +18,7 @@ BRANCH="${DREAM_TEAM_BRANCH:-main}"
 # Что именно ставим (только наши файлы — чужие агенты/скилы в целевой папке не трогаем).
 AGENTS=(agent-manager agent-planner agent-critic agent-coder agent-reviewer agent-tester agent-debugger)
 SKILLS=(agent-pipeline agent-pipeline-run agent-manager agent-planner agent-critic agent-coder agent-reviewer agent-tester agent-debugger)
+COMMANDS=(dt dt-resume dt-new dt-issue dt-add dt-status dt-stop dt-log)
 
 GI_BEGIN="# >>> dream-team >>>"
 GI_END="# <<< dream-team <<<"
@@ -95,13 +96,16 @@ fi
 # ---- 3. установка (перезапись = апдейт) -----------------------------------
 install_into(){ # $1 = базовая целевая папка
   local base="$1" a s
-  mkdir -p "$base/agents" "$base/skills"
+  mkdir -p "$base/agents" "$base/skills" "$base/commands"
   for a in "${AGENTS[@]}"; do
     cp -f "$SRC/.opencode/agents/$a.md" "$base/agents/$a.md"
   done
   for s in "${SKILLS[@]}"; do
     rm -rf "$base/skills/$s"
     cp -R "$SRC/.opencode/skills/$s" "$base/skills/$s"
+  done
+  for c in "${COMMANDS[@]}"; do
+    cp -f "$SRC/.opencode/commands/$c.md" "$base/commands/$c.md"
   done
 }
 
@@ -122,7 +126,9 @@ ensure_gitignore(){ # $1 = имя целевой папки, напр. .opencode
   block+="$dir/agents/agent-debugger.md"$'\n'
   local s2
   for s2 in "${SKILLS[@]}"; do block+="$dir/skills/$s2/"$'\n'; done
-  block+="$dir/.planning/"$'\n'
+  local c2
+  for c2 in "${COMMANDS[@]}"; do block+="$dir/commands/$c2.md"$'\n'; done
+  block+=".planning/"$'\n'
   block+="$GI_END"
   touch "$gi"
   # вырезать старый блок (если был) и дописать свежий
@@ -141,7 +147,7 @@ for h in "${HLIST[@]}"; do
   info "Ставлю [$h / $SCOPE] → $base"
   install_into "$base"
   [ "$h" = claude ] && warn "claude: формат агентов opencode-специфичен (mode/permissions/subagent) — на Claude Code не тестировалось."
-  ok "Установлено: ${#AGENTS[@]} агентов + ${#SKILLS[@]} скилов в $base"
+  ok "Установлено: ${#AGENTS[@]} агентов + ${#SKILLS[@]} скилов + ${#COMMANDS[@]} команд в $base"
   if [ "$SCOPE" = local ]; then
     case "$h" in opencode) ensure_gitignore ".opencode";; claude) ensure_gitignore ".claude";; esac
   fi
@@ -151,8 +157,10 @@ done
 printf "\n${c_ok}Готово.${c_off} Запуск:\n"
 if printf '%s\n' "${HLIST[@]}" | grep -qx opencode; then
   printf "  ${c_dim}# opencode${c_off}\n"
-  printf "  opencode run --agent agent-manager \"Твоя задача\"\n"
-  printf "  opencode run --standalone --agent agent-manager \"resume\"   ${c_dim}# продолжить${c_off}\n"
+  printf "  ${c_dim}# в TUI opencode:${c_off} /dt-new <задача|@файл> · /dt · /dt-add · /dt-issue · /dt-status · /dt-stop\n"
+  if [ "$SCOPE" = global ]; then dtcli="$HOME/.config/opencode/skills/agent-manager/dt-cli.sh"; else dtcli=".opencode/skills/agent-manager/dt-cli.sh"; fi
+  printf "  ${c_dim}# из терминала:${c_off} alias dt='bash %s'\n" "$dtcli"
+  printf "  dt --new @prompt.md   ·   dt   ·   dt --status   ·   dt --log -f   ·   dt --stop\n"
 fi
 printf "\nОбновление — та же команда:\n"
 printf "  curl -fsSL https://raw.githubusercontent.com/%s/%s/install.sh | bash\n" "$REPO" "$BRANCH"

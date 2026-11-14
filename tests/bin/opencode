@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# мок opencode для тестов оркестратора. Сценарий: $DT_MOCK_SCRIPT — строки «роль статус [действие]»,
+# потребляются по порядку. действия: hang (handoff и висеть), nowrite (не писать), sleepN, plan2 (план с 2 волнами)
+log="${DT_MOCK_LOG:-/dev/null}"
+case "$1" in
+  session)
+    case "$2" in
+      export) echo '{"info":{},"messages":[]}' ;;
+      delete) echo "deleted $3" >> "$log"; echo "Session $3 deleted" ;;
+      list) : ;;
+    esac; exit 0 ;;
+  api) echo "api $*" >> "$log"; echo '{"interrupted":true}'; exit 0 ;;
+  run) ;;
+  *) exit 0 ;;
+esac
+shift; agent=""; while [ $# -gt 1 ]; do case "$1" in --agent) agent="$2"; shift 2;; --model|--format) shift 2;; --standalone) shift;; *) break;; esac; done
+prompt="$1"; role="${agent#agent-}"
+out="$(printf '%s' "$prompt" | grep -o 'РОВНО в файл `[^`]*`' | head -1 | sed 's/.*`\(.*\)`/\1/')"
+line="$(head -1 "$DT_MOCK_SCRIPT")"; sed -i '' '1d' "$DT_MOCK_SCRIPT"
+set -- $line; want="$1"; st="$2"; act="${3:-}"
+sid="ses_mock$RANDOM"
+echo "{\"type\":\"step_start\",\"sessionID\":\"$sid\"}"
+echo "run role=$role want=$want st=$st act=$act out=$out" >> "$log"
+[ "$role" = "$want" ] || { echo "MOCK: ждал $want, запущен $role" >> "$log"; st=blocked; }
+P=.planning/agent-pipeline
+case "$role:$st" in
+  planner:done) printf '# plan\n### Wave 1.1: alpha\n' > $P/plan-draft.md; [ "$act" = plan2 ] && printf '### Wave 1.2: beta\n' >> $P/plan-draft.md ;;
+  planner:approved) cp $P/plan-draft.md $P/plan.md; echo ok > $P/approval-planner.md ;;
+  critic:approved) echo ok > $P/approval-critic.md ;;
+  critic:needs-revision) echo crit > $P/critique.md ;;
+  reviewer:approved) echo ok > $P/approval-reviewer.md ;;
+  coder:done) echo summary > $P/code-summary.md ;;
+  tester:done) echo rep > $P/test-report.md; [ "$act" = stray ] && echo x > cover.out ;;
+  debugger:clean) echo clean > $P/clean-report.md ;;
+  debugger:bugs-found) mkdir -p $P/bug-reports; echo bug > $P/bug-reports/bug-001.md ;;
+esac
+case "$act" in sleep*) sleep "${act#sleep}" ;; esac
+if [ "$act" = junk ]; then mkdir -p src; echo 'package src' > src/a.go; git add src/a.go; git commit -qm "src"; echo junk > stdout_temp.txt; mkdir -p tmpd; echo x > tmpd/y.out; fi
+if [ "$act" != nowrite ]; then printf '# Handoff: %s\n\n## STATUS\n\n%s\n\n## DONE\n- mock\n' "$role" "$st" > "$out"; fi
+[ "$act" = hang ] && sleep 999
+echo "{\"type\":\"text\",\"sessionID\":\"$sid\",\"part\":{\"text\":\"status=$st handoff=$out\"}}"
+exit 0

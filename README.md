@@ -39,24 +39,53 @@ DREAM_TEAM_HARNESS=opencode DREAM_TEAM_SCOPE=global \
 # HARNESS: opencode|claude|both (default opencode) · SCOPE: global|local (default local)
 ```
 
-Целевые пути: opencode — `~/.config/opencode/{agents,skills}` (global) или `.opencode/…` (local);
-claude — `~/.claude/{agents,skills}` (global) или `.claude/…` (local). claude не тестировался.
+Целевые пути: opencode — `~/.config/opencode/{agents,skills,commands}` (global) или `.opencode/…` (local);
+claude — `~/.claude/{agents,skills,commands}` (global) или `.claude/…` (local). claude не тестировался.
 
 Вручную (альтернатива): скопировать `.opencode/` в корень своего проекта.
 
-## Запуск
+## Как это работает
+
+Пайплайн ведёт **детерминированный скрипт-оркестратор** `dt-run.sh`, а не модель. Он запускает
+каждую роль отдельным `opencode run --agent agent-<роль>` со свежим контекстом, даёт ей
+входной handoff и точный путь выходного, читает `STATUS` и переходит по state-machine
+(plan → code по волнам → test → done / новый цикл). Модели работают только в ролях.
+
+Во время работы роли оркестратор следит за правками (`/dt-add` прерывает роль за секунды и
+уводит в перепланирование), командой стоп, таймаутом и «зависшим» процессом. Сессию каждой
+роли он экспортирует в `.planning/agent-pipeline/sessions/` и удаляет из opencode, чтобы
+фоновый сервис opencode не «воскрешал» прерванные роли.
+
+## Команды
+
+| TUI (opencode) | Терминал | Что делает |
+| --- | --- | --- |
+| `/dt-new <задача>` | `dt --new <задача>` | новая задача (`--force` — поверх незаконченной; старое → архив) |
+| `/dt-new @prompt.md` | `dt --new @prompt.md` | задача из файла — для больших промптов |
+| `/dt` | `dt` | продолжить с места остановки |
+| `/dt-add <правка>` | `dt --add <правка>` | правка: прервать текущую роль, перепланировать с учётом уже сделанного |
+| `/dt-issue <текст>` | `dt --issue <текст>` | в беклог, без прерывания; после `done` — новый цикл |
+| `/dt-status` | `dt --status` | стадия, пара, итерация, волна, текущая роль, журнал |
+| `/dt-log` | `dt --log [N]` · `dt --log -f` | журнал оркестратора |
+| `/dt-stop` | `dt --stop` | остановить (состояние сохраняется; продолжить — `/dt`) |
 
 ```bash
-cd /path/to/your/project      # каталог с .opencode/
-
-# новая задача
-opencode run --agent agent-manager "Создать REST API для пользователей с JWT"
-
-# продолжить прерванный прогон (сообщение 'resume', не флаг)
-opencode run --standalone --agent agent-manager "resume"
+alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'   # терминал
+dt --new @prompt.md        # на переднем плане (Ctrl-C = стоп); dt --bg … — в фоне
 ```
 
-Артефакты прогона — в `.planning/agent-pipeline/` (handoffs, state, план, баг-репорты).
+Слэш-команды запускают оркестратор в фоне и сразу отвечают — TUI остаётся свободным, следить
+`/dt-status`. Ограничение слэш-команд: обратная кавычка `` ` `` в тексте обрезает его (так
+opencode разбирает `` !`…` ``) — текст с кодом передавай файлом (`@prompt.md`).
+
+Настройка — переменные окружения: `DT_MAX_PAIR_ITERS` (5), `DT_MAX_TEST_ROUNDS` (3),
+`DT_TIMEOUT_<РОЛЬ>` в минутах (PLANNER 40, CRITIC 25, CODER 90, REVIEWER 30, TESTER 60,
+DEBUGGER 60), `DT_MODEL` (модель ролей), `DT_KEEP_SESSIONS=1` (не удалять сессии ролей),
+`DT_ADD_INTERRUPT=step` (правка — только на границе шагов).
+
+Артефакты прогона — в `.planning/agent-pipeline/` (`run.log`, `state.env`, handoffs, план,
+отчёты, баг-репорты, архивы циклов). Каталог автоматически исключается из git
+(`.git/info/exclude`).
 
 ## Документация
 
@@ -67,7 +96,9 @@ resume и результатов сквозной валидации — в [HAN
 
 ```
 .opencode/agents/            исполняемые роли (opencode subagents)
-  agent-manager.md           primary — диспетчер
+  agent-manager.md           primary — вход слэш-команд (пересказывает ответ оркестратора)
   agent-{planner,critic,coder,reviewer,tester,debugger}.md
+.opencode/commands/          слэш-команды /dt, /dt-{new,resume,issue,add,status,stop,log}
 .opencode/skills/            протоколы + craft-reference ролей
+  agent-manager/dt-*.sh      оркестратор и вход (dt-run.sh, dt-cli.sh, dt.sh, dt-lib.sh)
 ```
