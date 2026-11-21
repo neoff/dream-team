@@ -115,3 +115,22 @@ WORK-HANDOFF.md   # этот файл
 2. Правки вести в `.opencode/`, затем синк в `dream-team` (rsync `.opencode/` + docs) и push
    в `main` — дистрибутив обновится, `curl|bash` подтянет.
 3. Следующий шаг по плану — пункт 1 из «Открыто»: нативная адаптация под Claude Code.
+
+## v4: mahcode + MCP, без bash (2026-11-22)
+- Схема: менеджер (сессия mahcode; вход — блок в AGENTS.md, `@dream-team new|add|issue|status|continue|stop`)
+  → лиды пар отдельными сессиями через MCP mahcode → роли тоже top-level сессиями. Модели —
+  `.mahcode/dream-team.yaml` (manager / leads / roles.*). Файлы: `.mahcode/skills/dream-team/`
+  (SKILL, manager, lead, mcp, intake, handoff-protocol, roles/), `.mahcode/templates/AGENTS.dream-team.md`.
+  Установка: `install.sh` (DREAM_TEAM_HARNESS=mahcode, по умолчанию) и `install.ps1` (Windows).
+- Уроки: на внешних движках `@скил` не подмешивается (вход через AGENTS.md) и steer в текущий ход
+  не доходит → сигналы файлами: `inbox/` (команды менеджеру, пишет любая сессия) и `interrupt.md`
+  (менеджер → лид). Движки рвут MCP-вызов через 300 с → `wait_for_session` только по ≤ 60 с.
+- MCP mahcode зарегистрирован глобально: ~/.codex/config.toml, ~/.claude.json,
+  ~/.gemini/antigravity/mcp_config.json (бэкапы *.bak-20261121-*).
+- Живые тесты (scratchpad mc-e2e2/3, менеджер+лиды codex/gpt-6-luna, роли wirellm/main):
+  plan → code (волны) → test → done; `add:` из отдельной сессии → inbox → interrupt → переплан →
+  Seq реализован. `issue:` в тесте потерялся: приёмщик на wirellm/main записал файл не по формату
+  и сам начал писать код → менеджер теперь разбирает inbox по содержимому, запрет в intake
+  ужесточён. Повторно путь issue → цикл 2 НЕ прогонялся.
+- mahcode (сессия c1caad): починены сабагенты на внешних движках (3948adc, нужен рестарт демона);
+  профиль для primary-сессий и проброс MCP внешним движкам — ждут решения пользователя.

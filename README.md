@@ -18,7 +18,61 @@
 Внутри пары doer и critic итерируют до консенсуса; только потом пара отдаёт Менеджеру
 совместный результат. Менеджер качество не оценивает — крутит цикл механически и роутит.
 
-## Установка
+## dream-team для mahcode (основная версия)
+
+Менеджер — обычная сессия mahcode. Лиды пар и роли — отдельные сессии, которые запускаются
+через MCP mahcode (`create_session` / `send_message` / `wait_for_session`). В рантайме нет bash:
+только markdown-инструкции и вызовы MCP, поэтому версия работает и под Windows.
+
+```
+ты / сессия CTO ⇄ МЕНЕДЖЕР ──MCP──► ЛИД plan ──► planner ⇄ critic
+                                   ► ЛИД code ──► coder ⇄ reviewer   (по волнам)
+                                   ► ЛИД test ──► tester ⇄ debugger
+```
+
+- Лид сам крутит свою пару до консенсуса и возвращает менеджеру один вердикт
+  (`approved` / `clean` / `bugs-found` / `blocked` / `interrupted`).
+- Менеджер решает только, какую пару запускать следующей, и общается с тобой или CTO.
+
+**Установка в проект** (из корня проекта):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | DREAM_TEAM_HARNESS=mahcode bash
+```
+```powershell
+irm https://raw.githubusercontent.com/neoff/dream-team/main/install.ps1 | iex     # Windows
+```
+
+Ставит `.mahcode/skills/{dream-team,agent-*}`, `.mahcode/dream-team.yaml` (если файла нет),
+блок-вход в `AGENTS.md`, `.mcp.json` с сервером mahcode и выполняет `mahcode mcp trust`.
+
+**Модели** задаются для каждого проекта в `.mahcode/dream-team.yaml`: `manager`, `leads` и
+`roles.<роль>`. Подходит любой id из mahcode: `codex/gpt-6-luna#xhigh`, `claude-code/opus`,
+`antigravity/…`, `wirellm/main`, `opencode-go/…`. Менеджеру и лидам нужен MCP mahcode:
+у `wirellm/*` он есть всегда, а для codex, claude-code и agy MCP нужно один раз зарегистрировать
+в их глобальных конфигах:
+
+```toml
+# ~/.codex/config.toml
+[mcp_servers.mahcode]
+command = "mahcode"
+args = ["mcp", "serve"]
+```
+```bash
+claude mcp add --scope user mahcode -- mahcode mcp serve          # Claude Code
+# Antigravity: ~/.gemini/antigravity/mcp_config.json → mcpServers.mahcode
+```
+
+**Команды** (в сессии mahcode проекта или через MCP `send_message` от CTO):
+`@dream-team new: <задача>` (или `new: @prompt.md`), `@dream-team add: <правка>`,
+`@dream-team issue: <дополнение>`, `@dream-team status`, `@dream-team continue`,
+`@dream-team stop`. Артефакты лежат в `.planning/dream-team/` (`state.md`, `handoffs/`, `verdicts/`).
+
+Ограничения mahcode на сегодня (переданы разработчику): сабагенты на внешних движках не
+работают, поэтому роли запускаются отдельными сессиями; `@скил` не подмешивается внешним
+движкам, поэтому вход идёт через `AGENTS.md`.
+
+## Установка (bash-оркестратор для opencode)
 
 Одной командой (та же команда ставит и обновляет):
 

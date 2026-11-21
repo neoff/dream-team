@@ -1,0 +1,26 @@
+# dream-team — какие модели у кого в ЭТОМ проекте. Менеджер читает файл при каждом
+# запуске лида, правки действуют со следующей пары. Id моделей — как в mahcode (get_models):
+#   wirellm/<model>            — WireLLM (нативно, MCP mahcode есть всегда)
+#   codex/<slug>[#effort]      — Codex CLI      (effort: low | medium | high | xhigh)
+#   claude-code/<opus|sonnet|haiku>
+#   antigravity/<model>        — agy
+#   opencode-go/<model>        — opencode
+# Менеджеру и лидам нужен MCP mahcode: wirellm — всегда; codex/claude/agy — если
+# mahcode зарегистрирован в их конфиге (инсталлятор это предлагает).
+
+manager: codex/gpt-6-luna#high        # менеджер: общается с тобой/CTO, решает между парами
+leads:   codex/gpt-6-luna#medium      # лиды пар: крутят цикл doer ⇄ critic
+
+roles:
+  planner:  codex/gpt-6-luna#high
+  critic:   codex/gpt-6-luna#xhigh
+  coder:    codex/gpt-6-luna#xhigh
+  reviewer: codex/gpt-6-luna#high
+  tester:   wirellm/main
+  debugger: codex/gpt-6-luna#high
+
+limits:
+  max_pair_iters: 5        # итераций doer ⇄ critic в паре до blocked
+  max_test_rounds: 3       # раундов test → bugfix до blocked
+  session_ttl: 86400       # сек. бездействия, после которых mahcode сам удаляет сессии лидов/ролей
+  wait_timeout: 60         # сек. одного wait_for_session (≤ 60: движки рвут MCP-вызов через 300 с), повторяется до конца хода

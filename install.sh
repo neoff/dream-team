@@ -6,7 +6,7 @@
 #
 # Интерактивно спросит: харнес (opencode / claude / оба) и область (global / local).
 # Неинтерактивно (пайп без tty) берёт переменные окружения / значения по умолчанию:
-#   DREAM_TEAM_HARNESS=opencode|claude|both   (default: opencode)
+#   DREAM_TEAM_HARNESS=mahcode|opencode|claude|both   (default: mahcode)
 #   DREAM_TEAM_SCOPE=global|local             (default: local)
 #   DREAM_TEAM_BRANCH=main
 #
@@ -54,9 +54,9 @@ SCOPE="${DREAM_TEAM_SCOPE:-}"
 
 if [ -z "$HARNESS" ]; then
   if have_tty; then
-    HARNESS="$(menu "Для какого харнеса ставить?" "opencode|opencode" "claude|claude (не тестировалось)" "both|оба")"
+    HARNESS="$(menu "Для какого харнеса ставить?" "mahcode|mahcode (MCP-версия: менеджер + лиды пар)" "opencode|opencode (bash-оркестратор)" "claude|claude (не тестировалось)" "both|opencode + claude")"
   else
-    HARNESS="opencode"
+    HARNESS="mahcode"
   fi
 fi
 if [ -z "$SCOPE" ]; then
@@ -67,7 +67,7 @@ if [ -z "$SCOPE" ]; then
   fi
 fi
 
-case "$HARNESS" in opencode|claude|both) ;; *) die "неизвестный харнес: $HARNESS";; esac
+case "$HARNESS" in mahcode|opencode|claude|both) ;; *) die "неизвестный харнес: $HARNESS";; esac
 case "$SCOPE" in local|global) ;; *) die "неизвестная область: $SCOPE";; esac
 
 targets_for(){ # $1 harness -> эхо базовой папки по $SCOPE
@@ -77,7 +77,7 @@ targets_for(){ # $1 harness -> эхо базовой папки по $SCOPE
   esac
 }
 
-HLIST=(); case "$HARNESS" in opencode) HLIST=(opencode);; claude) HLIST=(claude);; both) HLIST=(opencode claude);; esac
+HLIST=(); case "$HARNESS" in mahcode) HLIST=(mahcode);; opencode) HLIST=(opencode);; claude) HLIST=(claude);; both) HLIST=(opencode claude);; esac
 
 # ---- 2. выкачать репо во временную папку ----------------------------------
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
@@ -142,7 +142,35 @@ ensure_gitignore(){ # $1 = имя целевой папки, напр. .opencode
   ok "В .gitignore занесён блок dream-team ($dir)"
 }
 
+# mahcode: только markdown + MCP (без bash в рантайме). Всегда в проект (cwd).
+install_mahcode(){
+  local dst="$PWD/.mahcode" s
+  mkdir -p "$dst/skills"
+  for s in dream-team agent-planner agent-critic agent-coder agent-reviewer agent-tester agent-debugger; do
+    rm -rf "$dst/skills/$s"; cp -R "$SRC/.mahcode/skills/$s" "$dst/skills/$s"
+  done
+  if [ -f "$dst/dream-team.yaml" ]; then ok "dream-team.yaml уже есть — модели проекта не трогаю"
+  else cp "$SRC/.mahcode/dream-team.yaml" "$dst/dream-team.yaml"; ok "создан .mahcode/dream-team.yaml (модели — поправь под проект)"; fi
+  # AGENTS.md: блок-вход (идемпотентно, по маркерам)
+  local ag="$PWD/AGENTS.md" tmp
+  touch "$ag"
+  if grep -qF '<!-- >>> dream-team >>> -->' "$ag"; then
+    tmp="$(mktemp)"; awk '/<!-- >>> dream-team >>> -->/{skip=1} !skip{print} /<!-- <<< dream-team <<< -->/{skip=0}' "$ag" > "$tmp"; mv "$tmp" "$ag"
+  fi
+  printf '\n' >> "$ag"; cat "$SRC/.mahcode/templates/AGENTS.dream-team.md" >> "$ag"
+  ok "AGENTS.md: вход @dream-team"
+  # .mcp.json: MCP mahcode для нативных сессий проекта
+  if [ ! -f "$PWD/.mcp.json" ]; then
+    printf '{ "mcpServers": { "mahcode": { "command": "mahcode", "args": ["mcp", "serve"] } } }\n' > "$PWD/.mcp.json"
+  elif ! grep -q '"mahcode"' "$PWD/.mcp.json"; then
+    warn ".mcp.json уже есть — добавь сервер mahcode (command: mahcode, args: [mcp, serve]) вручную"
+  fi
+  command -v mahcode >/dev/null 2>&1 && (cd "$PWD" && mahcode mcp trust >/dev/null) && ok "mahcode mcp trust"
+  warn "чтобы менеджер/лиды работали на codex/claude/agy, зарегистрируй MCP mahcode в их конфигах (см. README)"
+}
+
 for h in "${HLIST[@]}"; do
+  if [ "$h" = mahcode ]; then info "Ставлю [mahcode] → $PWD/.mahcode"; install_mahcode; continue; fi
   base="$(targets_for "$h")"
   info "Ставлю [$h / $SCOPE] → $base"
   install_into "$base"
