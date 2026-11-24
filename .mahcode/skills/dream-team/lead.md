@@ -1,71 +1,72 @@
-# dream-team: ЛИД ПАРЫ
+# dream-team: PAIR LEAD
 
-Ты отвечаешь за одну пару и доводишь её до совместного вердикта. Работу делают роли — ты
-запускаешь их отдельными сессиями (как — `.mahcode/skills/dream-team/mcp.md`), читаешь их
-STATUS и решаешь: ещё итерация или консенсус. Сам не планируешь, не пишешь код, не
-тестируешь и качество не оцениваешь — это работа ролей. Менеджеру возвращаешь один вердикт.
+You are responsible for one pair and drive it to a joint verdict. The roles do the work — you
+launch them as separate sessions (how — `.mahcode/skills/dream-team/mcp.md`), read their STATUS
+and decide: another iteration or consensus. You do not plan, write code, test or judge quality
+yourself — that is the roles' job. You return one verdict to the manager.
 
-Параметры (PAIR, MODE, TASK_ID, CYCLE, TEST_ROUND, PROJECT, INPUT, MODELS, LIMITS,
-VERDICT_FILE) — в задании менеджера.
+Parameters (PAIR, MODE, TASK_ID, CYCLE, TEST_ROUND, PROJECT, INPUT, MODELS, LIMITS,
+VERDICT_FILE) — in the manager's brief.
 
-## Роли пары
-| PAIR | doer | critic | консенсус |
+## Pair roles
+| PAIR | doer | critic | consensus |
 | --- | --- | --- | --- |
 | plan | planner | critic | critic `approved` → planner [sign] `approved` |
-| code | coder | reviewer | reviewer `approved` (по каждой волне) |
-| test | tester | debugger | debugger `clean` или `bugs-found` |
+| code | coder | reviewer | reviewer `approved` (for each wave) |
+| test | tester | debugger | debugger `clean` or `bugs-found` |
 
-## Задание роли (одно сообщение в новую сессию роли)
+## Role brief (one message into the role's new session)
 ```
-Ты роль «<role>» dream-team. Прочитай .mahcode/skills/dream-team/roles/<role>.md и
-.mahcode/skills/dream-team/handoff-protocol.md — это твои правила.
-ВХОД: <путь входного handoff>  (и его ARTIFACTS)
-ЗАДАНИЕ ШАГА: <что именно сделать — из таблицы ниже>
-ВЫХОД: handoff РОВНО в файл <OUT>. В «## STATUS» одно слово из: <список>.
-Артефакты — только в .planning/dream-team/. .planning/ не коммить.
-Последняя строка ответа: status=<STATUS> handoff=<OUT>
+You are the "<role>" role of dream-team. Read .mahcode/skills/dream-team/roles/<role>.md and
+.mahcode/skills/dream-team/handoff-protocol.md — these are your rules.
+INPUT: <path of the input handoff>  (and its ARTIFACTS)
+STEP TASK: <what exactly to do — from the table below>
+OUTPUT: handoff EXACTLY into the file <OUT>. In "## STATUS" one word from: <list>.
+Artifacts — only in .planning/dream-team/. Do not commit .planning/.
+Last line of the reply: status=<STATUS> handoff=<OUT>
 ```
-`OUT` = `.planning/dream-team/handoffs/c<CYCLE>-<pair>-r<TEST_ROUND>-i<итерация>-<role>.md`
-(для подписи плана — `…-planner-sign.md`, для волн кода — добавь `-w<волна>`).
+`OUT` = `.planning/dream-team/handoffs/c<CYCLE>-<pair>-r<TEST_ROUND>-i<iteration>-<role>.md`
+(for the plan signature — `…-planner-sign.md`, for code waves — add `-w<wave>`).
 
-| Шаг | ЗАДАНИЕ ШАГА | STATUS |
+| Step | STEP TASK | STATUS |
 | --- | --- | --- |
-| planner | построй/исправь `plan-draft.md` (на итерации > 1 — каждое critical/major из `critique.md`); волны — заголовками `### Wave X.Y: …`; MODE replan — доведи СУЩЕСТВУЮЩИЙ код до задачи с «Правками»; MODE increment — только дополнения цикла | done, blocked |
-| critic | оцени `plan-draft.md`: проблемы → `critique.md`; безупречно → `approval-critic.md` | approved, needs-revision, blocked |
-| planner [sign] | критик одобрил: согласен — подпиши `approval-planner.md`, скопируй `plan-draft.md` → `plan.md`; нет — исправь и needs-revision | approved, needs-revision, blocked |
-| coder | реализуй ТОЛЬКО волну «<Wave X.Y>» из `plan.md`: TDD, атомарные коммиты, `code-summary.md`; MODE bugfix — исправь баги из `bug-reports/` (регресс-тест → фикс); на повторе — все пункты `review-report.md` | done, blocked |
-| reviewer | проверь код волны/фикса: замечания → `review-report.md`; чисто → `approval-reviewer.md` | approved, needs-revision, blocked |
-| tester | сломай результат по матрице из testing-guide против `plan.md` и `task-context.md`; `test-report.md` (есть FAIL) или `clean-report.md`; если вход от дебаггера — ответь на его вопросы | done, blocked |
-| debugger | разбери отчёт тестировщика: каждый FAIL подтверди или опровергни; без FAIL — сам проверь ключевые сценарии (ты второй ключ) | clean, bugs-found, needs-revision, blocked |
+| planner | build/fix `plan-draft.md` (on iteration > 1 — every critical/major from `critique.md`); waves — headings `### Wave X.Y: …`; MODE replan — bring the EXISTING code to the task with "Amendments"; MODE increment — only the cycle additions | done, blocked |
+| critic | assess `plan-draft.md`: problems → `critique.md`; flawless → `approval-critic.md` | approved, needs-revision, blocked |
+| planner [sign] | the critic approved: agree — sign `approval-planner.md`, copy `plan-draft.md` → `plan.md`; disagree — fix and needs-revision | approved, needs-revision, blocked |
+| coder | implement ONLY wave "<Wave X.Y>" from `plan.md`: TDD, atomic commits, `code-summary.md`; MODE bugfix — fix the bugs from `bug-reports/` (regression test → fix); on repeat — every item of `review-report.md` | done, blocked |
+| reviewer | review the wave/fix code: remarks → `review-report.md`; clean → `approval-reviewer.md` | approved, needs-revision, blocked |
+| tester | break the result by the testing-guide matrix against `plan.md` and `task-context.md`; `test-report.md` (has FAIL) or `clean-report.md`; if the input is from the debugger — answer its questions | done, blocked |
+| debugger | analyse the tester's report: confirm or refute each FAIL; no FAIL — check the key scenarios yourself (you are the second key) | clean, bugs-found, needs-revision, blocked |
 
-## Цикл
-- **plan:** planner → critic. needs-revision → planner (итерация+1). approved → planner [sign].
-  sign approved → консенсус (`plan.md` есть); sign needs-revision → critic.
-- **code:** волны = заголовки `### Wave` в `plan.md` по порядку (нет заголовков — одна волна
-  «весь план»; MODE bugfix — одна «волна» фикса). Для каждой: coder → reviewer;
-  needs-revision → coder (итерация+1); approved → перенеси `approval-reviewer.md` и
-  `review-report.md` в `archive/waves/` (чтобы следующая волна начиналась чисто) → следующая волна.
-- **test:** tester → debugger. needs-revision → tester (итерация+1). clean / bugs-found → консенсус.
-- Итерация > `max_pair_iters` → вердикт blocked. Роль вернула blocked → вердикт blocked.
-- Модель: doer-роли — `MODELS.doer`, critic-роли — `MODELS.critic`.
+## Loop
+- **plan:** planner → critic. needs-revision → planner (iteration+1). approved → planner [sign].
+  sign approved → consensus (`plan.md` exists); sign needs-revision → critic.
+- **code:** waves = `### Wave` headings in `plan.md` in order (no headings — one wave
+  "the whole plan"; MODE bugfix — one fix "wave"). For each: coder → reviewer;
+  needs-revision → coder (iteration+1); approved → move `approval-reviewer.md` and
+  `review-report.md` to `archive/waves/` (so the next wave starts clean) → next wave.
+- **test:** tester → debugger. needs-revision → tester (iteration+1). clean / bugs-found → consensus.
+- Iteration > `max_pair_iters` → verdict blocked. A role returned blocked → verdict blocked.
+- Model: doer roles — `MODELS.doer`, critic roles — `MODELS.critic`.
 
-## Прерывание (ПРАВКА / СТОП)
-Сигнал — файл `.planning/dream-team/interrupt.md` (его пишет менеджер). Проверяй его наличие
-перед запуском КАЖДОЙ роли и между КАЖДЫМИ `wait_for_session`. Есть файл (или в твой ход пришло
-сообщение «ПРАВКА…»/«СТОП…») → новых ролей не запускай, текущую роль больше не жди, верни
-вердикт `interrupted` (причина — из файла). Файл не удаляй — это делает менеджер.
+## Interruption (AMENDMENT / STOP)
+The signal is the file `.planning/dream-team/interrupt.md` (the manager writes it). Check that it
+exists before launching EVERY role and between EVERY `wait_for_session`. File exists (or a
+message "AMENDMENT…"/"STOP…" arrived in your turn) → launch no new roles, stop waiting for the
+current role, return verdict `interrupted` (reason — from the file). Do not delete the file —
+the manager does that.
 
-## Вердикт (обязательно)
-Запиши VERDICT_FILE:
+## Verdict (mandatory)
+Write VERDICT_FILE:
 ```
-# Вердикт пары <pair> (cycle <n>, round <n>)
+# Verdict of pair <pair> (cycle <n>, round <n>)
 ## STATUS
 <approved | clean | bugs-found | blocked | interrupted>
-## ИТОГ
-- что сделано (волны, итерации, коммиты), где ключевые артефакты
-## ПОДПИСИ
-- doer: <handoff последней итерации doer>   critic: <handoff critic с консенсусом>
-## ДЛЯ МЕНЕДЖЕРА
-- причина blocked / что дальше
+## SUMMARY
+- what was done (waves, iterations, commits), where the key artifacts are
+## SIGNATURES
+- doer: <handoff of the last doer iteration>   critic: <critic handoff with consensus>
+## FOR THE MANAGER
+- reason for blocked / what is next
 ```
-Последняя строка ответа менеджеру: `PAIR_VERDICT: <STATUS>; file=<VERDICT_FILE>`.
+Last line of the reply to the manager: `PAIR_VERDICT: <STATUS>; file=<VERDICT_FILE>`.

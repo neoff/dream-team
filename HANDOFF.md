@@ -1,130 +1,130 @@
-# Handoff: парный агентский пайплайн (dream-team)
+# Handoff: paired agent pipeline (dream-team)
 
-Многоагентный конвейер разработки для **opencode**: три антагонистичные пары ролей под
-диспетчером-Менеджером. Проверен сквозным прогоном до `done` (см. «Валидация» ниже).
+A multi-agent development pipeline for **opencode**: three antagonistic role pairs under a
+Manager-dispatcher. Verified by an end-to-end run to `done` (see "Validation" below).
 
-## Архитектура (v3 — оркестратор-скрипт)
+## Architecture (v3 — orchestrator script)
 
 ```
-        dt-run.sh — детерминированный оркестратор (bash), НЕ модель
-          │  запускает роль = отдельный `opencode run --agent agent-<роль>` (свежий контекст)
-          │  читает `## STATUS` из handoff → переход по state-machine → следующая роль
-      пара PLAN            пара CODE (по волнам)   пара TEST
+        dt-run.sh — deterministic orchestrator (bash), NOT a model
+          │  launches a role = a separate `opencode run --agent agent-<role>` (fresh context)
+          │  reads `## STATUS` from the handoff → state-machine transition → next role
+      PLAN pair            CODE pair (by waves)   TEST pair
    planner ⇄ critic     coder ⇄ reviewer       tester ⇄ debugger
 ```
 
-- Внутри пары: doer делает, critic критикует, цикл до консенсуса. План закрывается двумя
-  подписями (critic `approved` → planner подписывает и фиксирует `plan.md`); код — по волнам
-  `### Wave X.Y:`; тест — вердикт debugger'а (второй ключ) `clean` / `bugs-found`.
-- Почему скрипт: LLM-менеджер (проверено на `wirellm/main`) пропускал пары ревью/теста, не вёл
-  state, не проверял правки между шагами, сам писал код, спавнил сам себя. Переходы — механика,
-  и теперь их делает код: `transition()` в `dt-run.sh`, таблица — `state-machine.md`.
-- Сторожа во время роли: правка (`/dt-add`) → роль прерывается → переплан; `/dt-stop`;
-  таймаут; «зависший» процесс (handoff записан, а `opencode run` не выходит).
-- Гигиена: сессия каждой роли экспортируется в `sessions/` и удаляется из opencode — иначе
-  фоновый сервис `opencode serve --service` возобновляет прерванные сессии (зомби-роли пишут в
-  тот же `.planning/`). `run.lock` = pid; сирота после `kill -9` добивается при старте.
-- `agent-manager` остался только как вход слэш-команд: пересказывает ответ `dt-cli.sh`.
+- Inside a pair: the doer does, the critic criticizes, loop until consensus. The plan is closed by two
+  signatures (critic `approved` → the planner signs and fixes `plan.md`); code — by waves
+  `### Wave X.Y:`; test — the debugger's (second key) verdict `clean` / `bugs-found`.
+- Why a script: the LLM manager (tested on `wirellm/main`) skipped the review/test pairs, did not keep
+  state, did not check amendments between steps, wrote code itself, spawned itself. Transitions are mechanics,
+  and now code does them: `transition()` in `dt-run.sh`, table — `state-machine.md`.
+- Watchers during a role: amendment (`/dt-add`) → the role is interrupted → replan; `/dt-stop`;
+  timeout; a "hung" process (handoff written, but `opencode run` does not exit).
+- Hygiene: each role's session is exported to `sessions/` and deleted from opencode — otherwise
+  the background service `opencode serve --service` resumes interrupted sessions (zombie roles write into
+  the same `.planning/`). `run.lock` = pid; an orphan after `kill -9` is killed on start.
+- `agent-manager` remains only as the slash-command entry: it relays the reply of `dt-cli.sh`.
 
-## Роли
+## Roles
 
-Каждая роль — opencode **subagent** со свежим изолированным контекстом; общение только
-через файлы на диске. Менеджер спавнит роль инструментом `subagent`, передаёт путь к
-входному handoff; роль читает handoff + артефакты, работает, пишет свой handoff, возвращает
-короткую квитанцию `status=... handoff=...`.
+Each role is an opencode **subagent** with a fresh isolated context; communication only
+through files on disk. The Manager spawns a role with the `subagent` tool, passes the path to the
+input handoff; the role reads the handoff + artifacts, works, writes its handoff, returns
+a short receipt `status=... handoff=...`.
 
-| Пара | doer | critic (антагонист) | консенсус |
+| Pair | doer | critic (antagonist) | consensus |
 |------|------|---------------------|-----------|
-| plan | planner | critic | подписанный `plan.md` |
-| code | coder | reviewer | одобренный код (по волнам) |
-| test | tester | debugger | вердикт `clean` / `bugs-found` |
+| plan | planner | critic | signed `plan.md` |
+| code | coder | reviewer | approved code (by waves) |
+| test | tester | debugger | verdict `clean` / `bugs-found` |
 
-- plan: critic ищет ВСЕ дыры плана, не чинит — возвращает planner. Оба подписывают.
-- code: coder — обязательный TDD (RED→GREEN), максимальное покрытие, атомарные коммиты;
-  reviewer — lint/codestyle, без дублей, без мёртвого кода/неиспользуемых переменных/файлов,
-  функциональность сгруппирована. Reviewer не чинит — возвращает coder.
-- test: tester разрабатывает свои E2E/edge/invalid/инъекции сценарии на собранном итоге;
-  debugger расследует каждый FAIL, подтверждает/опровергает с детерминированными шагами
-  воспроизведения. `bugs-found` → Менеджер возвращает в пару code; `clean` → `done`.
+- plan: the critic finds ALL holes in the plan, does not fix — returns it to the planner. Both sign.
+- code: coder — mandatory TDD (RED→GREEN), maximum coverage, atomic commits;
+  reviewer — lint/codestyle, no duplicates, no dead code/unused variables/files,
+  functionality grouped. The reviewer does not fix — returns to the coder.
+- test: the tester designs its own E2E/edge/invalid/injection scenarios on the built result;
+  the debugger investigates each FAIL, confirms/refutes it with deterministic reproduction
+  steps. `bugs-found` → the Manager returns to the code pair; `clean` → `done`.
 
-## Гигиена контекста
+## Context hygiene
 
-После каждого шага роль пишет полный `handoffs/step-NN-<role>.md` (STATUS, DONE, ARTIFACTS,
-FOR NEXT AGENT, OPEN/RISKS, CONTEXT RESET) и возвращает Менеджеру только короткую квитанцию.
-Следующая роль поднимается с чистого контекста и восстанавливает всё из handoff + артефактов.
-Контекст не теряется (всё на диске) и не переполняется. Менеджер тянет в свой контекст только
-`pipeline-state.json` + разделы STATUS/FOR-NEXT, не артефакты целиком.
+After each step a role writes a full `handoffs/step-NN-<role>.md` (STATUS, DONE, ARTIFACTS,
+FOR NEXT AGENT, OPEN/RISKS, CONTEXT RESET) and returns only a short receipt to the Manager.
+The next role starts from a clean context and restores everything from the handoff + artifacts.
+Context is not lost (everything is on disk) and does not overflow. The Manager pulls into its context only
+`pipeline-state.json` + the STATUS/FOR-NEXT sections, not whole artifacts.
 
-Менеджер обновляет `pipeline-state.json` ПОСЛЕ КАЖДОГО шага, ДО спавна следующей роли —
-иначе resume поднимет пайплайн не с того места. state всегда = реальность на диске.
+The Manager updates `pipeline-state.json` AFTER EVERY step, BEFORE spawning the next role —
+otherwise resume would restart the pipeline from the wrong place. state always = reality on disk.
 
-## Файлы
+## Files
 
 ```
-.opencode/agents/            # исполняемые роли (subagents)
-  agent-manager.md           #   primary — диспетчер (permissions: subagent только 6 ролей)
+.opencode/agents/            # executable roles (subagents)
+  agent-manager.md           #   primary — dispatcher (permissions: subagent only for 6 roles)
   agent-{planner,critic,coder,reviewer,tester,debugger}.md
 .opencode/skills/
   agent-pipeline/{SKILL,README,workflow,pair-protocol,handoff-protocol}.md
-  agent-pipeline-run/SKILL.md          # точка входа (команды для человека)
+  agent-pipeline-run/SKILL.md          # entry point (commands for a human)
   agent-manager/{SKILL,state-machine}.md
-  agent-<role>/{SKILL,*-guide}.md      # craft-reference ролей
+  agent-<role>/{SKILL,*-guide}.md      # role craft references
 ```
 
-Состояние и артефакты прогона — в `.planning/agent-pipeline/` (handoffs, bug-reports,
+Run state and artifacts — in `.planning/agent-pipeline/` (handoffs, bug-reports,
 archive, pipeline-state.json, plan.md, task-context.md).
 
-## Запуск и продолжение
+## Launch and resume
 
 ```bash
-# TUI: /dt-new <задача|@prompt.md> · /dt · /dt-add · /dt-issue · /dt-status · /dt-log · /dt-stop
-alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'   # терминал, тот же синтаксис
-dt --new @prompt.md      # передний план (Ctrl-C = стоп); dt --bg … — в фоне
-dt                       # продолжить ровно с сохранённого шага (state.env: NEXT_ROLE/IN_HANDOFF)
+# TUI: /dt-new <task|@prompt.md> · /dt · /dt-add · /dt-issue · /dt-status · /dt-log · /dt-stop
+alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'   # terminal, same syntax
+dt --new @prompt.md      # foreground (Ctrl-C = stop); dt --bg … — background
+dt                       # resume exactly from the saved step (state.env: NEXT_ROLE/IN_HANDOFF)
 ```
 
-Уроки opencode v2.0.32, учтённые в скриптах:
-- слэш-команды грузятся из `{command,commands}/**/*.md` (поля template/description/agent/
-  model/subagent); `` !`cmd` `` в шаблоне выполняется ДО модели (cwd проекта); в `opencode run`
-  слэш не раскрывается;
-- `opencode run -- "msg"` кладёт сообщение в сессию дважды — `--` не используется;
-- `opencode run` без `</dev/null` в скрипте ждёт stdin; иногда не выходит после ответа —
-  отсюда сторож «зависания»;
-- роль с `mode: subagent` запускается напрямую через `--agent`;
-- glob-инструменты моделей не видят скрытый `.planning/` — роли получают пути явно.
+opencode v2.0.32 lessons built into the scripts:
+- slash commands are loaded from `{command,commands}/**/*.md` (fields template/description/agent/
+  model/subagent); `` !`cmd` `` in a template runs BEFORE the model (project cwd); in `opencode run`
+  the slash is not expanded;
+- `opencode run -- "msg"` puts the message into the session twice — `--` is not used;
+- `opencode run` without `</dev/null` in a script waits for stdin; sometimes it does not exit after the reply —
+  hence the "hang" watcher;
+- a role with `mode: subagent` is launched directly via `--agent`;
+- model glob tools do not see the hidden `.planning/` — roles get paths explicitly.
 
-## Защита от рекурсии (критично)
+## Recursion protection (critical)
 
-В v3 рекурсии нет по построению: роли запускает скрипт, агенту-входу запрещено всё, кроме
-пересказа. История (v2, LLM-менеджер): Менеджеру было ЗАПРЕЩЕНО: запускать `opencode`/`opencode run` из shell; спавнить самого себя;
-вызывать skill `agent-pipeline-run` (это точка входа для человека с примерами команд). Роли
-поднимаются ТОЛЬКО инструментом `subagent`. Нарушение = runaway-рекурсия (демон плодит
-дочерние процессы, жжёт токены). В прошлом это уже случалось и было закрыто ЗАПРЕТАМИ в
+In v3 there is no recursion by construction: the script launches roles, the entry agent is forbidden everything except
+relaying. History (v2, LLM manager): the Manager was FORBIDDEN to: run `opencode`/`opencode run` from shell; spawn itself;
+call the `agent-pipeline-run` skill (it is the human entry point with command examples). Roles
+were started ONLY with the `subagent` tool. Violation = runaway recursion (the daemon spawns
+child processes, burns tokens). This happened in the past and was closed with PROHIBITIONS in
 `agent-manager.md`.
 
-## Валидация (сквозной прогон)
+## Validation (end-to-end run)
 
-Задача: Go-пакет `emailvalidate` с `ValidateEmail(s string) bool` на RFC 5322 regexp, юнит-
-тесты (happy/edge/invalid/инъекции), максимальное покрытие, строгий TDD.
+Task: Go package `emailvalidate` with `ValidateEmail(s string) bool` on an RFC 5322 regexp, unit
+tests (happy/edge/invalid/injections), maximum coverage, strict TDD.
 
-Результат — пайплайн дошёл до `stage=done`:
-- План: пара planner⇄critic, ~8 итераций реальной критики → подписан (3 фазы / 6 волн).
-- Код: пара coder⇄reviewer, атомарные TDD-коммиты RED→GREEN; reviewer ловил мёртвый код
-  (`DEAD-001`) и ложные claim про ReDoS — антагонизм работал.
-- Тест: tester — 3× PASS с `-race`, coverage 98.6%, фаззинг 30s/13.3M execs/0 паник,
-  ReDoS/CRLF-инъекции/Unicode/concurrency PASS, бенч 42.4 µs/op.
-- `go build` clean, `go test -race` зелёный. Рекурсии не было.
+Result — the pipeline reached `stage=done`:
+- Plan: planner⇄critic pair, ~8 iterations of real criticism → signed (3 phases / 6 waves).
+- Code: coder⇄reviewer pair, atomic TDD commits RED→GREEN; the reviewer caught dead code
+  (`DEAD-001`) and false ReDoS claims — antagonism worked.
+- Test: tester — 3× PASS with `-race`, coverage 98.6%, fuzzing 30s/13.3M execs/0 panics,
+  ReDoS/CRLF injections/Unicode/concurrency PASS, bench 42.4 µs/op.
+- `go build` clean, `go test -race` green. No recursion.
 
-Известные пробелы / доработать:
-- **Debugger не переподписывает `clean`**: при нуле FAIL tester закрывает пару test в
-  одиночку. Антагонизм пары test до конца не доведён — стоит заставить debugger явно
-  подтверждать/оспаривать clean-вердикт (adversarial co-sign).
-- Многоволновость (code-пара по волнам) отработала, но код-ревью её масштабирования полезен.
-- `permissions:` у менеджера (frontmatter) валидирован живьём лишь частично.
+Known gaps / to improve:
+- **The debugger does not co-sign `clean`**: with zero FAILs the tester closes the test pair
+  alone. The test pair's antagonism is not complete — the debugger should explicitly
+  confirm/dispute the clean verdict (adversarial co-sign).
+- Multi-wave (code pair by waves) worked, but a code review of its scaling would help.
+- The manager's `permissions:` (frontmatter) was only partially validated live.
 
-## Статус репозитория
+## Repository status
 
-Пайплайн вынесен в отдельный репозиторий `neoff/dream-team` (этот репо). Содержит только
-`.opencode/` + документацию — без тестовых артефактов `.planning/` и без кода `emailvalidate`
-(это был разовый прогон-валидация). Для применения в реальном проекте: скопировать `.opencode/`
-в корень проекта (git-репо) и запускать, как описано выше.
+The pipeline was moved to a separate repository `neoff/dream-team` (this repo). It contains only
+`.opencode/` + documentation — without the `.planning/` test artifacts and without the `emailvalidate` code
+(that was a one-off validation run). To use it in a real project: copy `.opencode/`
+into the project root (git repo) and run as described above.

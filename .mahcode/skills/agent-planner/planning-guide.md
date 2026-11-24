@@ -1,45 +1,45 @@
 <!-- agent-planner planning guide -->
 <purpose>
-Руководство по созданию детальных планов исполнения
+Guide to creating detailed execution plans
 </purpose>
 
 <principles>
-### 1. Атомарность задач
-Каждая задача = один коммит = одна ответственность
-- Не смешивать рефакторинг и новую функциональность
-- Не смешивать несколько файлов без нужды
-- Тест + реализация = одна задача
+### 1. Task atomicity
+Each task = one commit = one responsibility
+- Do not mix refactoring and new functionality
+- Do not mix several files without need
+- Test + implementation = one task
 
-### 2. TDD-first мышление
+### 2. TDD-first thinking
 
-Для КАЖДОЙ задачи:
+For EACH task:
 
-1. **RED** — написать падающий тест (конкретный assert)
-2. **GREEN** — минимальная реализация для прохождения теста
-3. **REFACTOR** — улучшить код, тесты зеленые
+1. **RED** — write a failing test (a concrete assert)
+2. **GREEN** — minimal implementation to pass the test
+3. **REFACTOR** — improve the code, tests stay green
 
-План должен содержать конкретный тест для RED фазы.
+The plan must contain a concrete test for the RED phase.
 
-### 3. Независимость волн
+### 3. Wave independence
 
-Задачи в одной волне НЕ должны трогать одни файлы.
-Проверка: `files_modified` не пересекаются.
+Tasks in one wave must NOT touch the same files.
+Check: `files_modified` do not overlap.
 
-### 4. Явные зависимости
+### 4. Explicit dependencies
 
-Если задача B зависит от задачи A — разные волны.
-Зависимости документируются в плане.
+If task B depends on task A — different waves.
+Dependencies are documented in the plan.
 
-### 5. Полнота детализации
+### 5. Complete detail
 
-Кодер не должен принимать архитектурных решений.
-План отвечает на: что, где, как, какие паттерны, какие библиотеки, как тестировать.
+The Coder must not make architecture decisions.
+The plan answers: what, where, how, which patterns, which libraries, how to test.
 </principles>
 
 <plan_template>
 
 ````markdown
-# Plan: <Название задачи>
+# Plan: <Task name>
 
 ## Metadata
 
@@ -51,18 +51,18 @@
 - TDD: required
 - Coverage target: 85%
 
-## Phase 1: <Название фазы> (MVP / Core / Enhancement)
+## Phase 1: <Phase name> (MVP / Core / Enhancement)
 
-**Objective:** <Что достигается в этой фазе, 1-2 предложения>
+**Objective:** <What this phase achieves, 1-2 sentences>
 **Waves:** <N>
 
-### Wave 1.1: <Название волны>
+### Wave 1.1: <Wave name>
 
-**Objective:** <Что строится в этой волне>
+**Objective:** <What this wave builds>
 **Parallel:** true/false
-**Dependencies:** [] (IDs предыдущих волн)
+**Dependencies:** [] (IDs of previous waves)
 
-#### Task 1.1.1: <Название задачи>
+#### Task 1.1.1: <Task name>
 
 **Type:** implementation|test|refactor|config|docs
 **Files to modify:**
@@ -72,7 +72,7 @@
   **Test first (RED):**
 
 ```typescript
-// Конкретный тест, который должен упасть до реализации
+// A concrete test that must fail before implementation
 it('should validate email format', () => {
   expect(validateEmail('invalid')).toBe(false);
   expect(validateEmail('test@example.com')).toBe(true);
@@ -82,16 +82,16 @@ it('should validate email format', () => {
 
 **Implementation (GREEN):**
 
-- Использовать regex pattern RFC 5322
-- Функция `validateEmail(email: string): boolean` в `src/utils/validation.ts`
-- Экспорт из `src/utils/index.ts`
+- Use the RFC 5322 regex pattern
+- Function `validateEmail(email: string): boolean` in `src/utils/validation.ts`
+- Export from `src/utils/index.ts`
   **Refactor:**
-- Вынести regex в константу с комментарием
-- Добавить JSDoc
+- Move the regex into a commented constant
+- Add JSDoc
   **Acceptance criteria:**
-- [ ] Тест проходит
-- [ ] Линтер чист
-- [ ] Покрытие 100% для этой функции
+- [ ] Test passes
+- [ ] Linter clean
+- [ ] 100% coverage for this function
 
 #### Task 1.1.2: ...
 
@@ -104,49 +104,49 @@ it('should validate email format', () => {
 
 ### Error Handling
 
-- Стратегия: Result<T, E> / exceptions / error codes
-- Где логировать, где пробрасывать
+- Strategy: Result<T, E> / exceptions / error codes
+- Where to log, where to propagate
 
 ### Logging
 
-- Уровни: debug/info/warn/error
-- Структурированный JSON логгер
+- Levels: debug/info/warn/error
+- Structured JSON logger
 
 ### Configuration
 
-- env-based, с валидацией на старте
+- env-based, validated at startup
 
 ### Security
 
 - Input validation, sanitization
-- Auth/autz boundaries
+- Auth/authz boundaries
 
 ### Performance
 
-- Бюджеты: latency < Xms, memory < YMB
-- Профилирование точек
+- Budgets: latency < Xms, memory < YMB
+- Profiling points
 
 ```
 </plan_template>
 
 <quality_checklist>
-Перед передачей Критику проверить:
-- [ ] Каждая задача имеет конкретный RED тест
-- [ ] Нет задач типа "реализовать авторизацию" без деталей
-- [ ] Волны не имеют пересечений по файлам
-- [ ] Зависимости между волнами явны
-- [ ] Покрытие тестами указано для каждой задачи
-- [ ] Архитектурные решения обоснованы
-- [ ] Cross-cutting concerns покрыты
-- [ ] План исполняем Кодером БЕЗ уточнений
+Before passing to the Critic check:
+- [ ] Every task has a concrete RED test
+- [ ] No tasks like "implement authorization" without details
+- [ ] Waves have no file overlaps
+- [ ] Dependencies between waves are explicit
+- [ ] Test coverage is stated for every task
+- [ ] Architecture decisions are justified
+- [ ] Cross-cutting concerns are covered
+- [ ] The plan is executable by the Coder WITHOUT clarifications
 </quality_checklist>
 
 <common_pitfalls>
-1. **Слишком крупные задачи** — разбивать до атомарных
-2. **Отсутствие конкретных тестов** — "написать тесты" недопустимо, нужен конкретный assert
-3. **Неявные зависимости** — всегда объявлять files_modified
-4. **Архитектурные решения "на ходу"** — все решать на этапе планирования
-5. **Игнорирование ошибок** — каждый внешний вызов должен иметь обработку ошибок в плане
-6. **Отсутствие конфигурации** — hardcoded значения = баг в плане
+1. **Tasks too large** — split down to atomic ones
+2. **No concrete tests** — "write tests" is unacceptable, a concrete assert is required
+3. **Implicit dependencies** — always declare files_modified
+4. **Architecture decisions "on the fly"** — decide everything at the planning stage
+5. **Ignoring errors** — every external call must have error handling in the plan
+6. **No configuration** — hardcoded values = a bug in the plan
 </common_pitfalls>
 ```

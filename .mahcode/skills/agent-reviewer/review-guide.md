@@ -1,16 +1,16 @@
 <!-- agent-reviewer review guide -->
 <purpose>
-Детальное руководство по код-ревью. Ревьювер — страж качества перед тестированием.
+Detailed code review guide. The Reviewer is the quality guard before testing.
 </purpose>
 
 <review_philosophy>
 
-> "Я не ищу, чтобы кодер чувствовал себя хорошо. Я ищу баги, которые попадут в продакшн. Каждое пропущенное замечание — это моя ответственность. Я не исправляю — я требую исправления."
+> "I am not here to make the coder feel good. I look for bugs that would reach production. Every missed remark is my responsibility. I do not fix — I demand fixes."
 > </review_philosophy>
 
 <mandatory_checks>
 
-### 1. Линтер (Автоматический, БЛОКИРУЮЩИЙ)
+### 1. Linter (Automated, BLOCKING)
 
 ```bash
 # Node/TypeScript
@@ -26,21 +26,21 @@ ruff check .
 mypy .
 ```
 
-**Правило:** Ноль ошибок. Warning'ы — по согласованию с планом.
+**Rule:** Zero errors. Warnings — as agreed in the plan.
 
-### 2. Тесты и покрытие (Автоматический, БЛОКИРУЮЩИЙ)
+### 2. Tests and coverage (Automated, BLOCKING)
 
 ```bash
 npm test -- --coverage --watchAll=false
 ```
 
-**Правила:**
+**Rules:**
 
-- Все тесты проходят
-- Покрытие >= target (обычно 80%)
-- Нет skipped тестов без причины в комментарии
+- All tests pass
+- Coverage >= target (usually 80%)
+- No skipped tests without a reason in a comment
 
-### 3. Дубликаты кода (Полуавтоматический)
+### 3. Code duplicates (Semi-automated)
 
 ```bash
 # JS/TS
@@ -55,14 +55,14 @@ pip install jscpd
 jscpd src/
 ```
 
-**Правило:** 0 дубликатов > 6 строк. Общая логика должна быть в shared модулях.
+**Rule:** 0 duplicates > 6 lines. Shared logic must live in shared modules.
 
-### 4. Мертвый код (Полуавтоматический)
+### 4. Dead code (Semi-automated)
 
 ```bash
 # TS/JS
-npx ts-prune           # неиспользуемые экспорты
-npx depcheck           # неиспользуемые зависимости
+npx ts-prune           # unused exports
+npx depcheck           # unused dependencies
 knip                   # comprehensive dead code
 
 # Go
@@ -70,74 +70,74 @@ go install golang.org/x/tools/cmd/goimports@latest
 go build -vet=unusedresult ./...
 ```
 
-**Правило:** 0 неиспользуемых экспортов, переменных, функций, файлов.
+**Rule:** 0 unused exports, variables, functions, files.
 
-### 5. Соответствие плану (Ручной, БЛОКИРУЮЩИЙ)
+### 5. Plan compliance (Manual, BLOCKING)
 
-- Каждая задача плана = коммит в волне
-- Файлы соответствуют `files_modified` в плане
-- Нет лишних файлов/изменений
-- Архитектура = план (слои, зависимости)
+- Each plan task = a commit in the wave
+- Files match `files_modified` in the plan
+- No extra files/changes
+- Architecture = plan (layers, dependencies)
   </mandatory_checks>
 
 <architecture_checks>
 
-### SOLID нарушения
+### SOLID violations
 
-| Принцип   | Что проверять                               | Красные флаги                                        |
+| Principle | What to check                               | Red flags                                            |
 | --------- | ------------------------------------------- | ---------------------------------------------------- |
-| **S** SRP | Класс/функция делает одно дело              | > 200 строк, > 5 причин для изменения                |
-| **O** OCP | Открыт для расширения, закрыт для изменения | if/else цепочки по типам, switch по enum             |
-| **L** LSP | Подтипы заменяют базовые                    | Нарушение контрактов, исключения в override          |
-| **I** ISP | Интерфейсы узкие, клиент-зависимые          | Fat interfaces, неиспользуемые методы                |
-| **D** DIP | Зависимости от абстракций                   | new Concrete() в бизнес-логике, импорт.impl в domain |
+| **S** SRP | Class/function does one thing               | > 200 lines, > 5 reasons to change                   |
+| **O** OCP | Open for extension, closed for modification | if/else chains by type, switch on enum               |
+| **L** LSP | Subtypes substitute base types              | Contract violations, exceptions in overrides         |
+| **I** ISP | Narrow, client-specific interfaces          | Fat interfaces, unused methods                       |
+| **D** DIP | Depend on abstractions                      | new Concrete() in business logic, .impl import in domain |
 
-### Слоистая архитектура (если в плане)
+### Layered architecture (if in the plan)
 
 ```
-domain/ (чистая бизнес-логика, 0 внешних депсов)
+domain/ (pure business logic, 0 external deps)
   ↓
-application/ (use cases, оркестрация)
+application/ (use cases, orchestration)
   ↓
-infrastructure/ (DB, HTTP, FS, внешние API)
+infrastructure/ (DB, HTTP, FS, external APIs)
   ↓
 interfaces/ (CLI, HTTP handlers, UI)
 ```
 
-**Проверка:** Импорты только вниз по стрелкам. Никаких циклов.
+**Check:** Imports only go down the arrows. No cycles.
 
-### DRY / Копипаст
+### DRY / Copy-paste
 
-- Поиск одинаковых блоков > 5 строк
-- Похожая логика с разными константами → параметризовать
-- Утилиты в `shared/` или `common/`
+- Search for identical blocks > 5 lines
+- Similar logic with different constants → parameterize
+- Utilities in `shared/` or `common/`
   </architecture_checks>
 
 <test_quality_checks>
 
-### Качество тестов (не количество!)
+### Test quality (not quantity!)
 
-**Плохие тесты (замечания):**
+**Bad tests (remarks):**
 
 ```typescript
-// ❌ Тестирует реализацию
+// ❌ Tests the implementation
 it('calls validateEmail with correct args', () => {
   const spy = vi.spyOn(utils, 'validateEmail');
   service.register(email);
   expect(spy).toHaveBeenCalledWith(email);
 });
 
-// ❌ Слишком общий
+// ❌ Too generic
 it('works correctly', () => {
   expect(service.doThing()).toBeTruthy();
 });
 
-// ❌ Нет edge cases
+// ❌ No edge cases
 it('validates email', () => {
   expect(validate('test@test.com')).toBe(true);
 });
 
-// ✅ Хороший тест
+// ✅ Good test
 it('should_reject_email_without_at_symbol', () => {
   expect(validateEmail('invalid')).toBe(false);
 });
@@ -153,34 +153,34 @@ it('should_reject_edge_cases', () => {
 });
 ```
 
-**Чек-лист тестов:**
+**Test checklist:**
 
-- [ ] Именование: `should_<expected>_when_<condition>`
+- [ ] Naming: `should_<expected>_when_<condition>`
 - [ ] AAA pattern: Arrange, Act, Assert
-- [ ] Один assert на тест (или логически связанные)
+- [ ] One assert per test (or logically related ones)
 - [ ] Edge cases: empty, null, boundary, unicode, huge input
 - [ ] Error paths: exceptions, rejections, timeouts
-- [ ] Нет тестирования приватных методов (через public API)
-- [ ] Моки только на границах (external services)
+- [ ] No testing of private methods (go through the public API)
+- [ ] Mocks only at boundaries (external services)
       </test_quality_checks>
 
 <security_checks>
 
-### Обязательные проверки безопасности
+### Mandatory security checks
 
-- [ ] **Input validation** — все пользовательские данные валидируются на входе
-- [ ] **SQL injection** — параметризованные запросы / ORM, никакой конкатенации
-- [ ] **XSS** — экранирование вывода, CSP headers
-- [ ] **Secrets** — нет API keys, passwords, tokens в коде/коммитах
-- [ ] **Auth/Autz** — проверка прав на чувствительных операциях
-- [ ] **Rate limiting** — защита от брутфорса / DDoS на публичных эндпоинтах
-- [ ] **CORS** — настроен правильно
-- [ ] **Dependencies** — `npm audit` / `go vuln check` — нет critical
+- [ ] **Input validation** — all user data is validated on input
+- [ ] **SQL injection** — parameterized queries / ORM, no concatenation
+- [ ] **XSS** — output escaping, CSP headers
+- [ ] **Secrets** — no API keys, passwords, tokens in code/commits
+- [ ] **Auth/Authz** — permission checks on sensitive operations
+- [ ] **Rate limiting** — brute-force / DDoS protection on public endpoints
+- [ ] **CORS** — configured correctly
+- [ ] **Dependencies** — `npm audit` / `go vuln check` — no critical
       </security_checks>
 
 <approval_ceremony>
 
-### Текст approval-reviewer.md (ТОЧНО):
+### approval-reviewer.md text (EXACTLY):
 
 ```
 # Reviewer Approval
@@ -212,17 +212,17 @@ it('should_reject_edge_cases', () => {
 - [ ] Code style: consistent with project
 
 ## Signature
-**Я, Ревьювер, подтверждаю — этот код готов к тестированию.
-Никаких известных багов, нарушений архитектуры или долга.
-Если Тестировщик найдет баг — это моя вина.
-Подпись: <timestamp>**
+**I, the Reviewer, confirm — this code is ready for testing.
+No known bugs, architecture violations or debt.
+If the Tester finds a bug — it is my fault.
+Signature: <timestamp>**
 ```
 
 </approval_ceremony>
 
 <rejection_template>
 
-### review-report.md структура:
+### review-report.md structure:
 
 ```markdown
 # Code Review Report: Phase 1 Wave 1

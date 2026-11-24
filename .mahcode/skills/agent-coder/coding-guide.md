@@ -1,19 +1,19 @@
 <!-- agent-coder coding guide -->
 <purpose>
-Строгие правила TDD и реализации для Кодера. Никаких отклонений.
+Strict TDD and implementation rules for the Coder. No deviations.
 </purpose>
 
 <tdd_rules>
 
-### Жесткие правила TDD
+### Hard TDD rules
 
-1. **НИКАКОГО кода без падающего теста** — нулевая толерантность
-2. **Тест пишется в файл тестов** — не в main код, не в консоль
-3. **Тест должен быть конкретным** — конкретные входы, конкретные ожидания
-4. **Один тест на одну задачу** (минимум), лучше — несколько (happy, edge, error)
-5. **Коммит только после GREEN + REFACTOR** — не коммитить RED
+1. **NO code without a failing test** — zero tolerance
+2. **The test is written in a test file** — not in main code, not in the console
+3. **The test must be concrete** — concrete inputs, concrete expectations
+4. **One test per task** (minimum), better — several (happy, edge, error)
+5. **Commit only after GREEN + REFACTOR** — do not commit RED
 
-### Цикл на задачу:
+### Per-task cycle:
 
 ```
 ┌─────────────────────────────────────┐
@@ -29,57 +29,57 @@
 └─────────────────────────────────────┘
 ```
 
-### Если тест не падает на шаге 3:
+### If the test does not fail at step 3:
 
-- Тест невалиден — проверяет не то, или всегда проходит
-- Переписать тест до тех пор пока не упадет
-- Частая ошибка: тест мокает то, что должен тестировать
+- The test is invalid — it checks the wrong thing or always passes
+- Rewrite the test until it fails
+- Common mistake: the test mocks what it is supposed to test
   </tdd_rules>
 
 <implementation_rules>
 
-### Следование плану
+### Following the plan
 
-- **План — закон**. Не менять архитектуру, не добавлять фичи, не упрощать "потому что проще"
-- Если в плане ошибка — остановиться, обновить pipeline-state.json с `blocked_reason`, уведомить Менеджера
-- Не принимать решений "на месте" — все решения в плане
+- **The plan is law**. Do not change the architecture, add features, or simplify "because it's easier"
+- If the plan has an error — stop, update pipeline-state.json with `blocked_reason`, notify the Manager
+- Make no decisions "on the spot" — all decisions are in the plan
 
-### Качество кода
+### Code quality
 
-- **DRY** — выносить общую логику в утилиты (как в плане)
+- **DRY** — move shared logic into utilities (as in the plan)
 - **SOLID** — single responsibility, dependency inversion
-- **Именование** — понятные имена, как в проекте (проверить существующий код)
-- **Типизация** — строгая, нет `any` / `unknown` без нужды
-- **Ошибки** — каждый внешний вызов: try/catch или Result<T,E>
-- **Логирование** — структурированное, уровни debug/info/warn/error
+- **Naming** — clear names, consistent with the project (check existing code)
+- **Typing** — strict, no `any` / `unknown` without need
+- **Errors** — every external call: try/catch or Result<T,E>
+- **Logging** — structured, levels debug/info/warn/error
 
-### Коммиты
+### Commits
 
 ```
-<type>(task-<id>): <краткое описание>
+<type>(task-<id>): <short description>
 
-- Test: <что покрывает тест>
+- Test: <what the test covers>
 - Implements: Phase <X> Wave <Y> Task <Z>
-- Plan-ref: <ссылка на задачу в plan.md>
+- Plan-ref: <reference to the task in plan.md>
 
 Co-authored-by: agent-coder <pipeline@local>
 ```
 
 Types: `feat` | `fix` | `refactor` | `test` | `docs` | `chore`
 
-### Файловая структура
+### File structure
 
-- Соответствовать плану точно
-- Не создавать лишних файлов
-- Не менять структуру без задачи в плане
+- Match the plan exactly
+- Do not create extra files
+- Do not change the structure without a task in the plan
   </implementation_rules>
 
 <test_writing_guide>
 
-### Unit тесты (основа)
+### Unit tests (foundation)
 
 ```typescript
-// Именование: should_<expected_behavior>_when_<condition>
+// Naming: should_<expected_behavior>_when_<condition>
 it('should_return_false_when_email_invalid', () => {
   // Arrange
   const input = 'not-an-email';
@@ -111,28 +111,28 @@ it('should_throw_when_disposal_not_supported', () => {
 });
 ```
 
-### Integration тесты
+### Integration tests
 
-- Реальные зависимости (БД, HTTP, FS) — через testcontainers / моки на границе
-- Тестировать контракты, не реализацию
-- Один интеграционный тест на ключевой user journey
+- Real dependencies (DB, HTTP, FS) — via testcontainers / mocks at the boundary
+- Test contracts, not implementation
+- One integration test per key user journey
 
-### Покрытие
+### Coverage
 
-- Цель: 80%+ общий, 95%+ для бизнес-логики
-- Исключения: main.ts, конфиги, типы — не считать
-- `npm test -- --coverage` — проверять локально
+- Target: 80%+ overall, 95%+ for business logic
+- Exclusions: main.ts, configs, types — not counted
+- `npm test -- --coverage` — check locally
   </test_writing_guide>
 
 <common_traps>
 
-1. **Писать реализацию, потом тест** — НАРУШЕНИЕ, перезапуск задачи
-2. **Тест проходит сразу** — значит тест невалиден или функционал уже есть (проверить!)
-3. **Коммитить без рефакторинга** — технический долг в пайплайне недопустим
-4. **Игнорировать линтер** — `npm run lint` должен проходить перед коммитом
-5. **Менять чужие тесты** — только свои, если не задача рефакторинга
-6. **Хардкодить значения** — конфиг в env/константы
-7. **Пропускать error handling** — каждый внешний вызов = потенциальная ошибка
+1. **Writing the implementation, then the test** — VIOLATION, restart the task
+2. **The test passes immediately** — the test is invalid or the functionality already exists (check!)
+3. **Committing without refactoring** — technical debt in the pipeline is unacceptable
+4. **Ignoring the linter** — `npm run lint` must pass before the commit
+5. **Changing others' tests** — only your own, unless it is a refactoring task
+6. **Hardcoding values** — config goes to env/constants
+7. **Skipping error handling** — every external call = a potential error
    </common_traps>
 
 <code_summary_template>

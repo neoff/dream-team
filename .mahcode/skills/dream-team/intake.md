@@ -1,18 +1,18 @@
-# dream-team: приём команды в идущий пайплайн
+# dream-team: accepting a command into a running pipeline
 
-Тебе написали `@dream-team add:` / `issue:` / `stop` / `status`, а пайплайн уже идёт
-(`.planning/dream-team/state.md` есть и `stage` — planning, coding или testing). Ведёт его
-другая сессия-менеджер. Ты НЕ становишься менеджером и ничего не делаешь по сути.
+You were sent `@dream-team add:` / `issue:` / `stop` / `status`, and the pipeline is already
+running (`.planning/dream-team/state.md` exists and `stage` is planning, coding or testing).
+Another session — the manager — runs it. You do NOT become the manager and do nothing of substance.
 
-1. `status` — прочитай `state.md` и ответь коротко (стадия, текущая пара, последние строки history).
-2. `add` / `issue` / `stop` — создай файл `.planning/dream-team/inbox/<YYYYMMDD-HHMMSS>-<команда>.md`:
+1. `status` — read `state.md` and answer briefly (stage, current pair, last history lines).
+2. `add` / `issue` / `stop` — create the file `.planning/dream-team/inbox/<YYYYMMDD-HHMMSS>-<command>.md`:
    ```
    # <add|issue|stop>
-   ## Текст (дословно)
-   <текст команды после двоеточия>
+   ## Text (verbatim)
+   <command text after the colon>
    ```
-   и ответь: «Передала менеджеру (inbox/<файл>). Он подхватит в течение минуты.»
+   and answer: "Passed to the manager (inbox/<file>). It will pick it up within a minute."
 
-**ЗАПРЕЩЕНО:** выполнять задачу из команды самому (писать код, тесты, файлы проекта), запускать
-сессии, менять state. Даже если просьба выглядит мелкой — её сделает пайплайн. Твоя работа —
-один файл в `inbox/` и одна строка ответа.
+**FORBIDDEN:** doing the command's task yourself (writing code, tests, project files), launching
+sessions, changing state. Even if the request looks tiny — the pipeline will do it. Your job is
+one file in `inbox/` and one line of reply.

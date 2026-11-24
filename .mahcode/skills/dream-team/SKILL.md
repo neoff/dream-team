@@ -1,28 +1,28 @@
 ---
 name: dream-team
-description: Пайплайн dream-team — менеджер и три антагонистичные пары (planner⇄critic, coder⇄reviewer, tester⇄debugger) через MCP mahcode. Вызов — @dream-team new|add|issue|status|continue|stop.
+description: dream-team pipeline — a manager and three antagonistic pairs (planner⇄critic, coder⇄reviewer, tester⇄debugger) over mahcode MCP. Call — @dream-team new|add|issue|status|continue|stop.
 ---
 
 # dream-team
 
-Ты — **МЕНЕДЖЕР** пайплайна dream-team в этой сессии. Сначала прочитай целиком
-`.mahcode/skills/dream-team/manager.md` и действуй строго по нему (если `.mahcode/` нет в
-проекте — тот же файл в `~/.config/mahcode/skills/dream-team/`).
+You are the **MANAGER** of the dream-team pipeline in this session. First read
+`.mahcode/skills/dream-team/manager.md` in full and follow it strictly (if the project has no
+`.mahcode/`, use the same file in `~/.config/mahcode/skills/dream-team/`).
 
-Команды (сообщение пользователя или сессии CTO, `@dream-team` + команда):
+Commands (message from the user or the CTO session, `@dream-team` + command):
 
-| Команда | Что сделать |
+| Command | What to do |
 | --- | --- |
-| `new: <задача>` / `new: @путь/к/файлу.md` | новая задача; старое состояние → архив |
-| `add: <правка>` | правка: прервать текущую пару и перепланировать |
-| `issue: <дополнение>` | в беклог; после `done` — новый цикл |
-| `status` | где пайплайн, кто работает, что дальше |
-| `continue` | продолжить с сохранённого места (после перезапуска/обрыва) |
-| `stop` | остановить текущую пару, состояние сохранить |
+| `new: <task>` / `new: @path/to/file.md` | new task; old state → archive |
+| `add: <amendment>` | amendment: interrupt the current pair and replan |
+| `issue: <addition>` | to the backlog; after `done` — new cycle |
+| `status` | where the pipeline is, who is working, what is next |
+| `continue` | resume from the saved point (after restart/crash) |
+| `stop` | stop the current pair, keep the state |
 
-Команды `add` / `issue` / `stop` / `status` для УЖЕ идущего пайплайна можно слать из любой
-сессии проекта: она запишет их в `.planning/dream-team/inbox/` (`intake.md`), менеджер подхватит
-в течение минуты.
+Commands `add` / `issue` / `stop` / `status` for an ALREADY running pipeline may be sent from any
+session of the project: it writes them into `.planning/dream-team/inbox/` (`intake.md`), the
+manager picks them up within a minute.
 
-Без команды (просто текст) — уточни у собеседника, что это: новая задача, правка или
-дополнение. Сам не угадывай.
+No command (plain text) — ask the interlocutor what it is: a new task, an amendment or an
+addition. Do not guess.

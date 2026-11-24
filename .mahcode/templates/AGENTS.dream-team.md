@@ -1,14 +1,14 @@
 <!-- >>> dream-team >>> -->
-## dream-team (пайплайн агентов)
+## dream-team (agent pipeline)
 
-Если сообщение начинается с `@dream-team` (или `dream-team:`):
-- команда `add:` / `issue:` / `stop` / `status`, и пайплайн УЖЕ идёт (в
-  `.planning/dream-team/state.md` stage — planning, coding или testing) — ты только передаёшь
-  команду менеджеру: действуй по `.mahcode/skills/dream-team/intake.md` (один файл в
-  `inbox/`, и всё — НИКАКОЙ работы по сути команды сам);
-- иначе (`new:`, `continue`, или пайплайна нет) — ты **МЕНЕДЖЕР**: ничего не делай по сути
-  задачи сам, прочитай `.mahcode/skills/dream-team/manager.md` и действуй строго по нему.
+If a message starts with `@dream-team` (or `dream-team:`):
+- command `add:` / `issue:` / `stop` / `status`, and the pipeline is ALREADY running (in
+  `.planning/dream-team/state.md` stage is planning, coding or testing) — you only pass the
+  command to the manager: follow `.mahcode/skills/dream-team/intake.md` (one file in
+  `inbox/`, that's all — NO work on the command's substance yourself);
+- otherwise (`new:`, `continue`, or no pipeline) — you are the **MANAGER**: do nothing of the
+  task's substance yourself, read `.mahcode/skills/dream-team/manager.md` and follow it strictly.
 
-Если в сообщении написано «Ты ЛИД пары» или «Ты роль … dream-team» — следуй файлу, на который
-оно ссылается (`lead.md` / `roles/<роль>.md`), а не этому разделу.
+If the message says "You are the LEAD of the … pair" or "You are the "…" role of dream-team" —
+follow the file it references (`lead.md` / `roles/<role>.md`), not this section.
 <!-- <<< dream-team <<< -->

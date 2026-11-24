@@ -1,42 +1,42 @@
-# dream-team: как запускать сессию через MCP mahcode
+# dream-team: how to start a session via mahcode MCP
 
-Менеджер запускает лидов, лиды запускают роли — одинаково, инструментами MCP-сервера
-`mahcode` (`create_session`, `send_message`, `wait_for_session`, `get_session_status`).
-Не через shell и не через встроенный `subagent` (на внешних движках он сейчас не работает).
+The manager launches leads, leads launch roles — the same way, with the tools of the `mahcode`
+MCP server (`create_session`, `send_message`, `wait_for_session`, `get_session_status`).
+Not via shell and not via the built-in `subagent` (it does not work on external engines yet).
 
-## Запуск и ожидание результата
+## Launch and wait for the result
 
 1. `create_session`:
-   - `directory` — АБСОЛЮТНЫЙ путь корня проекта (тот же, где лежит `.planning/`);
-   - `title` — `dt <TASK_ID> <что>`, напр. `dt 20261121-1530 plan-lead`, `dt 20261121-1530 plan-i2-critic`;
-   - `model` — из `.mahcode/dream-team.yaml` (`leads` для лида, `roles.<роль>` для роли);
-   - `ttl_seconds` — `limits.session_ttl` (mahcode сам удалит сессию после бездействия).
-   Запиши полученный `id` в state (`.planning/dream-team/state.md`) ДО отправки задания.
-2. `send_message(session_id=id, content=<задание>)` — БЕЗ `wait` (вернётся сразу).
-3. Затем `wait_for_session(session_id=id, timeout_seconds=60)` снова и снова, пока
-   `processing=true` или `timed_out=true`. **Никогда не ставь timeout больше 60 с и не используй
-   `wait=true` в send_message**: движки (codex и др.) обрывают MCP-вызов через 300 с, после чего
-   MCP-сервер mahcode «залипает» и следующие вызовы тоже падают. НЕ отправляй в занятую
-   сессию новые задания.
-   Между ожиданиями (каждые ≤ 60 с) ты получаешь управление — для менеджера это момент
-   обработать новые сообщения собеседника (см. manager.md).
-4. Результат — поле `latest_result` (последний ответ сессии). Но истина — файл handoff,
-   который сессия должна была записать: прочитай его `## STATUS`.
+   - `directory` — ABSOLUTE path of the project root (the same one that holds `.planning/`);
+   - `title` — `dt <TASK_ID> <what>`, e.g. `dt 20261121-1530 plan-lead`, `dt 20261121-1530 plan-i2-critic`;
+   - `model` — from `.mahcode/dream-team.yaml` (`leads` for a lead, `roles.<role>` for a role);
+   - `ttl_seconds` — `limits.session_ttl` (mahcode deletes the session itself after inactivity).
+   Write the returned `id` into state (`.planning/dream-team/state.md`) BEFORE sending the brief.
+2. `send_message(session_id=id, content=<brief>)` — WITHOUT `wait` (returns immediately).
+3. Then `wait_for_session(session_id=id, timeout_seconds=60)` again and again while
+   `processing=true` or `timed_out=true`. **Never set timeout above 60 s and never use
+   `wait=true` in send_message**: engines (codex etc.) cut an MCP call after 300 s, after which
+   the mahcode MCP server gets stuck and the following calls fail too. Do NOT send new briefs
+   into a busy session.
+   Between waits (every ≤ 60 s) you get control back — for the manager this is the moment to
+   process new messages from the interlocutor (see manager.md).
+4. The result is the `latest_result` field (the session's last reply). But the truth is the
+   handoff file the session had to write: read its `## STATUS`.
 
-## Если сессия не справилась
-- Нет handoff или STATUS не из списка → ОДИН повтор: `send_message` в ту же сессию:
-  «Ты не записал корректный handoff в <путь> (STATUS из: …). Доделай и запиши.» Второй провал →
-  `blocked` с причиной.
-- `status=faulted` (сессия упала) → один повтор в НОВОЙ сессии с тем же заданием; второй провал
-  → `blocked`.
+## If the session failed
+- No handoff or STATUS not in the list → ONE retry: `send_message` into the same session:
+  "You did not write a valid handoff to <path> (STATUS from: …). Finish and write it." Second
+  failure → `blocked` with the reason.
+- `status=faulted` (the session crashed) → one retry in a NEW session with the same brief; second
+  failure → `blocked`.
 
-## Срочные сигналы (правка, стоп) — только файлами
-Не полагайся на `send_message(..., mode="steer")` в занятую сессию: на внешних движках (codex,
-claude, agy) ход идёт одним процессом и steer до модели не доходит. Сигналы — файлы:
-`.planning/dream-team/inbox/*` (команды менеджеру) и `.planning/dream-team/interrupt.md`
-(менеджер → лид). Поэтому ожидание всегда короткими `wait_for_session` по ≤ 60 с — между ними
-проверяешь файлы.
+## Urgent signals (amendment, stop) — files only
+Do not rely on `send_message(..., mode="steer")` into a busy session: on external engines (codex,
+claude, agy) a turn is one process and steer does not reach the model. Signals are files:
+`.planning/dream-team/inbox/*` (commands to the manager) and `.planning/dream-team/interrupt.md`
+(manager → lead). That is why waiting is always short `wait_for_session` calls of ≤ 60 s — check
+the files between them.
 
-## Чего не делать
-- Не создавай вторую сессию на тот же шаг, пока первая жива (`get_session_status`).
-- Не держи в своём контексте содержимое чужих артефактов — передавай пути.
+## Don'ts
+- Do not create a second session for the same step while the first is alive (`get_session_status`).
+- Do not keep other sessions' artifact contents in your context — pass paths.

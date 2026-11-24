@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Тесты оркестратора dream-team на моке opencode (без моделей, ~2 мин).
-#   bash tests/run.sh            # все сценарии
-#   bash tests/run.sh amend stop # выбранные
-# Мок (tests/bin/opencode) играет роли по сценарию «роль статус [действие]».
+# dream-team orchestrator tests on an opencode mock (no models, ~2 min).
+#   bash tests/run.sh            # all scenarios
+#   bash tests/run.sh amend stop # selected ones
+# The mock (tests/bin/opencode) plays roles per the scenario "role status [action]".
 #
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +11,7 @@ WORK="$(mktemp -d "${TMPDIR:-/tmp}/dt-tests.XXXXXX")"
 CLI='bash .opencode/skills/agent-manager/dt-cli.sh'
 pass=0; fail=0
 
-# case <имя> <ожид. stage> <ожид. cycle> <сценарий через ;> [хук] [resume — после прогона ещё раз dt]
+# case <name> <expected stage> <expected cycle> <scenario separated by ;> [hook] [resume — run dt once more after the run]
 run_case(){
   local name="$1" want_stage="$2" want_cycle="$3" scen="$4" hook="${5:-}" again="${6:-}" d="${WORK}/$1"
   mkdir -p "${d}"; cd "${d}" || return
@@ -21,7 +21,7 @@ run_case(){
   export DT_MOCK_SCRIPT="${d}/scenario" DT_MOCK_LOG="${d}/mock.log" PATH="${ROOT}/tests/bin:${PATH}"
   export DT_POLL_SEC=1 DT_HANG_GRACE_SEC=3
   [ -n "${hook}" ] && bash -c "${hook}" &
-  ${CLI} --new "задача ${name}" > out.txt 2>&1
+  ${CLI} --new "task ${name}" > out.txt 2>&1
   wait
   if [ -n "${again}" ]; then ${CLI} > out2.txt 2>&1; fi
   . .planning/agent-pipeline/state.env
@@ -45,9 +45,9 @@ want nudge  && run_case nudge done 1 "planner done nowrite;${F}"
 want nudge2 && run_case nudge2 blocked 1 "planner done nowrite;planner done nowrite;planner done"
 want hang   && run_case hang done 1 "planner done hang;critic approved;planner approved;coder done;reviewer approved;tester done;debugger clean"
 want junk   && run_case junk done 1 "planner done;critic approved;planner approved;coder done junk;reviewer approved;tester done stray;debugger clean"
-want amend  && run_case amend done 1 "planner done;critic needs-revision sleep20;${F}" "sleep 5; ${CLI} --add 'правка' >/dev/null 2>&1"
-want issue  && run_case issue done 2 "planner done sleep6;critic approved;planner approved;coder done;reviewer approved;tester done;debugger clean;${F}" "sleep 4; ${CLI} --issue 'доп' >/dev/null 2>&1"
+want amend  && run_case amend done 1 "planner done;critic needs-revision sleep20;${F}" "sleep 5; ${CLI} --add 'amendment' >/dev/null 2>&1"
+want issue  && run_case issue done 2 "planner done sleep6;critic approved;planner approved;coder done;reviewer approved;tester done;debugger clean;${F}" "sleep 4; ${CLI} --issue 'extra' >/dev/null 2>&1"
 want stop   && run_case stop done 1 "planner done;critic approved sleep20;critic approved;planner approved;coder done;reviewer approved;tester done;debugger clean" "sleep 5; ${CLI} --stop >/dev/null 2>&1" resume
 
-echo "── ${pass} ok, ${fail} fail (каталог: ${WORK})"
+echo "── ${pass} ok, ${fail} fail (dir: ${WORK})"
 [ "${fail}" = 0 ]

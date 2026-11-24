@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# мок opencode для тестов оркестратора. Сценарий: $DT_MOCK_SCRIPT — строки «роль статус [действие]»,
-# потребляются по порядку. действия: hang (handoff и висеть), nowrite (не писать), sleepN, plan2 (план с 2 волнами)
+# opencode mock for orchestrator tests. Scenario: $DT_MOCK_SCRIPT — lines "role status [action]",
+# consumed in order. actions: hang (handoff and hang), nowrite (do not write), sleepN, plan2 (plan with 2 waves)
 log="${DT_MOCK_LOG:-/dev/null}"
 case "$1" in
   session)
@@ -15,13 +15,13 @@ case "$1" in
 esac
 shift; agent=""; while [ $# -gt 1 ]; do case "$1" in --agent) agent="$2"; shift 2;; --model|--format) shift 2;; --standalone) shift;; *) break;; esac; done
 prompt="$1"; role="${agent#agent-}"
-out="$(printf '%s' "$prompt" | grep -o 'РОВНО в файл `[^`]*`' | head -1 | sed 's/.*`\(.*\)`/\1/')"
+out="$(printf '%s' "$prompt" | grep -o 'EXACTLY into the file `[^`]*`' | head -1 | sed 's/.*`\(.*\)`/\1/')"
 line="$(head -1 "$DT_MOCK_SCRIPT")"; sed -i '' '1d' "$DT_MOCK_SCRIPT"
 set -- $line; want="$1"; st="$2"; act="${3:-}"
 sid="ses_mock$RANDOM"
 echo "{\"type\":\"step_start\",\"sessionID\":\"$sid\"}"
 echo "run role=$role want=$want st=$st act=$act out=$out" >> "$log"
-[ "$role" = "$want" ] || { echo "MOCK: ждал $want, запущен $role" >> "$log"; st=blocked; }
+[ "$role" = "$want" ] || { echo "MOCK: expected $want, launched $role" >> "$log"; st=blocked; }
 P=.planning/agent-pipeline
 case "$role:$st" in
   planner:done) printf '# plan\n### Wave 1.1: alpha\n' > $P/plan-draft.md; [ "$act" = plan2 ] && printf '### Wave 1.2: beta\n' >> $P/plan-draft.md ;;

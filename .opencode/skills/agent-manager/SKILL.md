@@ -1,19 +1,19 @@
 ---
 name: agent-manager
-description: 'Справка по оркестратору пайплайна dream-team (dt-run.sh) и агенту-входу agent-manager. Пайплайн ведёт скрипт, а не модель.'
+description: 'Reference for the dream-team pipeline orchestrator (dt-run.sh) and the agent-manager entry agent. The pipeline is run by a script, not a model.'
 ---
 
 <note>
-Пайплайн ведёт детерминированный скрипт `.opencode/skills/agent-manager/dt-run.sh`:
-запускает роли отдельными `opencode run --agent agent-<роль>`, читает STATUS из handoff,
-пишет состояние, обрабатывает правки (/dt-add) и беклог (/dt-issue).
-Агент `agent-manager` (`.opencode/agents/agent-manager.md`) — только вход для слэш-команд:
-пересказывает ответ скрипта, сам ничего не делает.
+The pipeline is run by the deterministic script `.opencode/skills/agent-manager/dt-run.sh`:
+it launches roles as separate `opencode run --agent agent-<role>`, reads STATUS from the handoff,
+writes the state, handles amendments (/dt-add) and the backlog (/dt-issue).
+The `agent-manager` agent (`.opencode/agents/agent-manager.md`) is only the slash-command entry point:
+it relays the script's reply and does nothing itself.
 </note>
 
 <references>
-- `dt-commands.md` — команды /dt…, оркестратор, сторожа, гигиена сессий
-- `state-machine.md` — стадии, переходы, формат состояния (state.env)
-- `.opencode/skills/agent-pipeline/pair-protocol.md` — цикл doer↔critic
-- `.opencode/skills/agent-pipeline/handoff-protocol.md` — формат handoff
+- `dt-commands.md` — /dt… commands, orchestrator, watchers, session hygiene
+- `state-machine.md` — stages, transitions, state format (state.env)
+- `.opencode/skills/agent-pipeline/pair-protocol.md` — doer↔critic loop
+- `.opencode/skills/agent-pipeline/handoff-protocol.md` — handoff format
 </references>

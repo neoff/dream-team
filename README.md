@@ -1,40 +1,40 @@
 # dream-team
 
-Многоагентный конвейер разработки для [opencode](https://opencode.ai): три **антагонистичные
-пары** ролей под диспетчером-Менеджером, со строгой гигиеной контекста (всё состояние — на
-диске, каждая роль поднимается с чистого контекста).
+A multi-agent development pipeline for [opencode](https://opencode.ai): three **antagonistic
+pairs** of roles under a Manager-dispatcher, with strict context hygiene (all state is on
+disk, every role starts from a clean context).
 
 ```
-        Менеджер (primary — раздаёт задачи и роутит МЕЖДУ парами)
+        Manager (primary — hands out tasks and routes BETWEEN pairs)
           │                    │                    │
-      пара PLAN            пара CODE            пара TEST
+      PLAN pair            CODE pair            TEST pair
    planner ⇄ critic     coder ⇄ reviewer    tester ⇄ debugger
 ```
 
-- **planner ⇄ critic** → подписанный `plan.md`
-- **coder ⇄ reviewer** → одобренный код (TDD, по волнам)
-- **tester ⇄ debugger** → вердикт `clean` / `bugs-found`
+- **planner ⇄ critic** → signed `plan.md`
+- **coder ⇄ reviewer** → approved code (TDD, by waves)
+- **tester ⇄ debugger** → verdict `clean` / `bugs-found`
 
-Внутри пары doer и critic итерируют до консенсуса; только потом пара отдаёт Менеджеру
-совместный результат. Менеджер качество не оценивает — крутит цикл механически и роутит.
+Inside a pair the doer and critic iterate until consensus; only then does the pair hand the Manager
+a joint result. The Manager does not judge quality — it runs the loop mechanically and routes.
 
-## dream-team для mahcode (основная версия)
+## dream-team for mahcode (main version)
 
-Менеджер — обычная сессия mahcode. Лиды пар и роли — отдельные сессии, которые запускаются
-через MCP mahcode (`create_session` / `send_message` / `wait_for_session`). В рантайме нет bash:
-только markdown-инструкции и вызовы MCP, поэтому версия работает и под Windows.
+The manager is a regular mahcode session. Pair leads and roles are separate sessions launched
+via the mahcode MCP (`create_session` / `send_message` / `wait_for_session`). There is no bash at runtime:
+only markdown instructions and MCP calls, so this version also works on Windows.
 
 ```
-ты / сессия CTO ⇄ МЕНЕДЖЕР ──MCP──► ЛИД plan ──► planner ⇄ critic
-                                   ► ЛИД code ──► coder ⇄ reviewer   (по волнам)
-                                   ► ЛИД test ──► tester ⇄ debugger
+you / CTO session ⇄ MANAGER ──MCP──► plan LEAD ──► planner ⇄ critic
+                                    ► code LEAD ──► coder ⇄ reviewer   (by waves)
+                                    ► test LEAD ──► tester ⇄ debugger
 ```
 
-- Лид сам крутит свою пару до консенсуса и возвращает менеджеру один вердикт
+- A lead runs its pair to consensus itself and returns one verdict to the manager
   (`approved` / `clean` / `bugs-found` / `blocked` / `interrupted`).
-- Менеджер решает только, какую пару запускать следующей, и общается с тобой или CTO.
+- The manager only decides which pair runs next and talks to you or the CTO.
 
-**Установка в проект** (из корня проекта):
+**Install into a project** (from the project root):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | DREAM_TEAM_HARNESS=mahcode bash
@@ -43,14 +43,14 @@ curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | 
 irm https://raw.githubusercontent.com/neoff/dream-team/main/install.ps1 | iex     # Windows
 ```
 
-Ставит `.mahcode/skills/{dream-team,agent-*}`, `.mahcode/dream-team.yaml` (если файла нет),
-блок-вход в `AGENTS.md`, `.mcp.json` с сервером mahcode и выполняет `mahcode mcp trust`.
+Installs `.mahcode/skills/{dream-team,agent-*}`, `.mahcode/dream-team.yaml` (if missing),
+the entry block in `AGENTS.md`, `.mcp.json` with the mahcode server, and runs `mahcode mcp trust`.
 
-**Модели** задаются для каждого проекта в `.mahcode/dream-team.yaml`: `manager`, `leads` и
-`roles.<роль>`. Подходит любой id из mahcode: `codex/gpt-6-luna#xhigh`, `claude-code/opus`,
-`antigravity/…`, `wirellm/main`, `opencode-go/…`. Менеджеру и лидам нужен MCP mahcode:
-у `wirellm/*` он есть всегда, а для codex, claude-code и agy MCP нужно один раз зарегистрировать
-в их глобальных конфигах:
+**Models** are set per project in `.mahcode/dream-team.yaml`: `manager`, `leads` and
+`roles.<role>`. Any mahcode id works: `codex/gpt-6-luna#xhigh`, `claude-code/opus`,
+`antigravity/…`, `wirellm/main`, `opencode-go/…`. The manager and leads need the mahcode MCP:
+`wirellm/*` always has it, while for codex, claude-code and agy the MCP must be registered once
+in their global configs:
 
 ```toml
 # ~/.codex/config.toml
@@ -63,96 +63,99 @@ claude mcp add --scope user mahcode -- mahcode mcp serve          # Claude Code
 # Antigravity: ~/.gemini/antigravity/mcp_config.json → mcpServers.mahcode
 ```
 
-**Команды** (в сессии mahcode проекта или через MCP `send_message` от CTO):
-`@dream-team new: <задача>` (или `new: @prompt.md`), `@dream-team add: <правка>`,
-`@dream-team issue: <дополнение>`, `@dream-team status`, `@dream-team continue`,
-`@dream-team stop`. Артефакты лежат в `.planning/dream-team/` (`state.md`, `handoffs/`, `verdicts/`).
+**Commands** (in a mahcode session of the project or via MCP `send_message` from the CTO):
+`@dream-team new: <task>` (or `new: @prompt.md`), `@dream-team add: <amendment>`,
+`@dream-team issue: <addition>`, `@dream-team status`, `@dream-team continue`,
+`@dream-team stop`. Artifacts live in `.planning/dream-team/` (`state.md`, `handoffs/`, `verdicts/`).
+The manager replies in the language you write to it.
 
-Ограничения mahcode на сегодня (переданы разработчику): сабагенты на внешних движках не
-работают, поэтому роли запускаются отдельными сессиями; `@скил` не подмешивается внешним
-движкам, поэтому вход идёт через `AGENTS.md`.
+Current mahcode limitations (reported to its developer): stopping a parent does not interrupt a
+subagent on an external engine, so roles are launched as separate sessions; `@skill` is not injected
+for external engines, so the entry goes through `AGENTS.md`.
 
-## Установка (bash-оркестратор для opencode)
+## Install (bash orchestrator for opencode)
 
-Одной командой (та же команда ставит и обновляет):
+One command (the same command installs and updates):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | bash
 ```
 
-Спросит **харнес** (opencode / claude / оба) и **область** (local — в текущий проект /
-global — для всех). Копирует только свои агенты/скилы, чужие файлы в целевой папке не трогает.
-При local-установке в git-проекте (или если есть `.gitignore`) заносит установленные пути в
-`.gitignore` (идемпотентный блок `# >>> dream-team >>>`).
+Asks for the **harness** (mahcode / opencode / claude / both) and the **scope** (local — into the current project /
+global — for all). Copies only its own agents/skills, other files in the target folder are left alone.
+On a local install in a git project (or if there is a `.gitignore`) it adds the installed paths to
+`.gitignore` (idempotent block `# >>> dream-team >>>`).
 
-Неинтерактивно (в пайпе без tty) управляется переменными:
+Non-interactively (in a pipe without a tty) it is controlled by variables:
 
 ```bash
 DREAM_TEAM_HARNESS=opencode DREAM_TEAM_SCOPE=global \
   bash -c 'curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | bash'
-# HARNESS: opencode|claude|both (default opencode) · SCOPE: global|local (default local)
+# HARNESS: mahcode|opencode|claude|both (default mahcode) · SCOPE: global|local (default local)
 ```
 
-Целевые пути: opencode — `~/.config/opencode/{agents,skills,commands}` (global) или `.opencode/…` (local);
-claude — `~/.claude/{agents,skills,commands}` (global) или `.claude/…` (local). claude не тестировался.
+Target paths: opencode — `~/.config/opencode/{agents,skills,commands}` (global) or `.opencode/…` (local);
+claude — `~/.claude/{agents,skills,commands}` (global) or `.claude/…` (local). claude is untested.
 
-Вручную (альтернатива): скопировать `.opencode/` в корень своего проекта.
+Manually (alternative): copy `.opencode/` into the root of your project.
 
-## Как это работает
+## How it works
 
-Пайплайн ведёт **детерминированный скрипт-оркестратор** `dt-run.sh`, а не модель. Он запускает
-каждую роль отдельным `opencode run --agent agent-<роль>` со свежим контекстом, даёт ей
-входной handoff и точный путь выходного, читает `STATUS` и переходит по state-machine
-(plan → code по волнам → test → done / новый цикл). Модели работают только в ролях.
+The pipeline is run by a **deterministic orchestrator script** `dt-run.sh`, not a model. It launches
+each role as a separate `opencode run --agent agent-<role>` with a fresh context, gives it the
+input handoff and the exact output path, reads `STATUS` and transitions per the state machine
+(plan → code by waves → test → done / new cycle). Models work only inside roles.
 
-Во время работы роли оркестратор следит за правками (`/dt-add` прерывает роль за секунды и
-уводит в перепланирование), командой стоп, таймаутом и «зависшим» процессом. Сессию каждой
-роли он экспортирует в `.planning/agent-pipeline/sessions/` и удаляет из opencode, чтобы
-фоновый сервис opencode не «воскрешал» прерванные роли.
+While a role works the orchestrator watches for amendments (`/dt-add` interrupts the role within seconds and
+goes to replanning), the stop command, timeouts and a "hung" process. It exports each role's session
+to `.planning/agent-pipeline/sessions/` and deletes it from opencode, so that the
+opencode background service does not "resurrect" interrupted roles.
 
-## Команды
+## Commands
 
-| TUI (opencode) | Терминал | Что делает |
+| TUI (opencode) | Terminal | What it does |
 | --- | --- | --- |
-| `/dt-new <задача>` | `dt --new <задача>` | новая задача (`--force` — поверх незаконченной; старое → архив) |
-| `/dt-new @prompt.md` | `dt --new @prompt.md` | задача из файла — для больших промптов |
-| `/dt` | `dt` | продолжить с места остановки |
-| `/dt-add <правка>` | `dt --add <правка>` | правка: прервать текущую роль, перепланировать с учётом уже сделанного |
-| `/dt-issue <текст>` | `dt --issue <текст>` | в беклог, без прерывания; после `done` — новый цикл |
-| `/dt-status` | `dt --status` | стадия, пара, итерация, волна, текущая роль, журнал |
-| `/dt-log` | `dt --log [N]` · `dt --log -f` | журнал оркестратора |
-| `/dt-stop` | `dt --stop` | остановить (состояние сохраняется; продолжить — `/dt`) |
+| `/dt-new <task>` | `dt --new <task>` | new task (`--force` — over an unfinished one; old → archive) |
+| `/dt-new @prompt.md` | `dt --new @prompt.md` | task from a file — for large prompts |
+| `/dt` | `dt` | resume from where it stopped |
+| `/dt-add <amendment>` | `dt --add <amendment>` | amendment: interrupt the current role, replan taking the done work into account |
+| `/dt-issue <text>` | `dt --issue <text>` | to the backlog, no interruption; after `done` — a new cycle |
+| `/dt-status` | `dt --status` | stage, pair, iteration, wave, current role, log |
+| `/dt-log` | `dt --log [N]` · `dt --log -f` | orchestrator log |
+| `/dt-stop` | `dt --stop` | stop (state is kept; resume — `/dt`) |
 
 ```bash
-alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'   # терминал
-dt --new @prompt.md        # на переднем плане (Ctrl-C = стоп); dt --bg … — в фоне
+alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'   # terminal
+dt --new @prompt.md        # foreground (Ctrl-C = stop); dt --bg … — background
 ```
 
-Слэш-команды запускают оркестратор в фоне и сразу отвечают — TUI остаётся свободным, следить
-`/dt-status`. Ограничение слэш-команд: обратная кавычка `` ` `` в тексте обрезает его (так
-opencode разбирает `` !`…` ``) — текст с кодом передавай файлом (`@prompt.md`).
+Slash commands start the orchestrator in the background and reply right away — the TUI stays free, watch
+with `/dt-status`. Slash command limitation: a backtick `` ` `` in the text truncates it (that is how
+opencode parses `` !`…` ``) — pass text with code as a file (`@prompt.md`).
 
-Настройка — переменные окружения: `DT_MAX_PAIR_ITERS` (5), `DT_MAX_TEST_ROUNDS` (3),
-`DT_TIMEOUT_<РОЛЬ>` в минутах (PLANNER 40, CRITIC 25, CODER 90, REVIEWER 30, TESTER 60,
-DEBUGGER 60), `DT_MODEL` (модель ролей), `DT_KEEP_SESSIONS=1` (не удалять сессии ролей),
-`DT_ADD_INTERRUPT=step` (правка — только на границе шагов).
+Settings — environment variables: `DT_MAX_PAIR_ITERS` (5), `DT_MAX_TEST_ROUNDS` (3),
+`DT_TIMEOUT_<ROLE>` in minutes (PLANNER 40, CRITIC 25, CODER 90, REVIEWER 30, TESTER 60,
+DEBUGGER 60), `DT_MODEL` (role model), `DT_KEEP_SESSIONS=1` (do not delete role sessions),
+`DT_ADD_INTERRUPT=step` (amendment — only at step boundaries).
 
-Артефакты прогона — в `.planning/agent-pipeline/` (`run.log`, `state.env`, handoffs, план,
-отчёты, баг-репорты, архивы циклов). Каталог автоматически исключается из git
+Run artifacts are in `.planning/agent-pipeline/` (`run.log`, `state.env`, handoffs, plan,
+reports, bug reports, cycle archives). The directory is automatically excluded from git
 (`.git/info/exclude`).
 
-## Документация
+## Documentation
 
-Полное описание архитектуры, протокола handoff, state-machine, защиты от рекурсии, уроков по
-resume и результатов сквозной валидации — в [HANDOFF.md](HANDOFF.md).
+Full description of the architecture, handoff protocol, state machine, recursion protection, resume
+lessons and end-to-end validation results — in [HANDOFF.md](HANDOFF.md).
 
-## Структура
+## Structure
 
 ```
-.opencode/agents/            исполняемые роли (opencode subagents)
-  agent-manager.md           primary — вход слэш-команд (пересказывает ответ оркестратора)
+.opencode/agents/            executable roles (opencode subagents)
+  agent-manager.md           primary — slash-command entry (relays the orchestrator's reply)
   agent-{planner,critic,coder,reviewer,tester,debugger}.md
-.opencode/commands/          слэш-команды /dt, /dt-{new,resume,issue,add,status,stop,log}
-.opencode/skills/            протоколы + craft-reference ролей
-  agent-manager/dt-*.sh      оркестратор и вход (dt-run.sh, dt-cli.sh, dt.sh, dt-lib.sh)
+.opencode/commands/          slash commands /dt, /dt-{new,resume,issue,add,status,stop,log}
+.opencode/skills/            protocols + role craft references
+  agent-manager/dt-*.sh      orchestrator and entry (dt-run.sh, dt-cli.sh, dt.sh, dt-lib.sh)
+.mahcode/                    MCP version for mahcode (skills, dream-team.yaml, AGENTS.md template)
+tests/                       orchestrator tests on an opencode mock (bash tests/run.sh)
 ```

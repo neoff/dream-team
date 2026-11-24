@@ -1,35 +1,35 @@
 ---
 name: agent-pipeline
-description: 'Обзор парного агентского пайплайна: три антагонистичные пары (planner+critic, coder+reviewer, tester+debugger) под диспетчером-Менеджером. Исполняется агентами в .opencode/agents/.'
+description: 'Overview of the paired agent pipeline: three antagonistic pairs (planner+critic, coder+reviewer, tester+debugger) under a Manager-dispatcher. Executed by the agents in .opencode/agents/.'
 ---
 
 <overview>
-Пайплайн разработки на трёх антагонистичных парах ролей, которыми диспетчеризует Менеджер.
-Каждая роль — opencode subagent со свежим контекстом; общение только через файлы на диске.
+A development pipeline of three antagonistic role pairs, dispatched by the Manager.
+Each role is an opencode subagent with a fresh context; communication only through files on disk.
 
-- пара plan: planner (doer) ⇄ critic (critic) → подписанный plan.md
-- пара code: coder (doer) ⇄ reviewer (critic) → одобренный код (по волнам)
-- пара test: tester (doer) ⇄ debugger (critic) → вердикт clean / bugs-found
+- plan pair: planner (doer) ⇄ critic (critic) → signed plan.md
+- code pair: coder (doer) ⇄ reviewer (critic) → approved code (by waves)
+- test pair: tester (doer) ⇄ debugger (critic) → verdict clean / bugs-found
 
-Менеджер раздаёт задачи и маршрутизирует МЕЖДУ парами; цикл ВНУТРИ пары он крутит
-механически по STATUS в handoff, не оценивая качество (это делает critic-роль пары).
+The Manager hands out tasks and routes BETWEEN pairs; it runs the loop INSIDE a pair
+mechanically by the STATUS in the handoff, without judging quality (the pair's critic role does that).
 </overview>
 
 <execution>
-Исполняемые роли — агенты, НЕ skills:
+Executable roles are agents, NOT skills:
 `.opencode/agents/agent-{manager,planner,critic,coder,reviewer,tester,debugger}.md`.
-Запуск: `opencode run --agent agent-manager "<задача>"` (см. `agent-pipeline-run`).
+Launch: `opencode run --agent agent-manager "<task>"` (see `agent-pipeline-run`).
 </execution>
 
 <stages>
 init → planning → coding → testing → done
-(testing: bugs-found → снова coding). Подробности — state-machine.md.
+(testing: bugs-found → coding again). Details — state-machine.md.
 </stages>
 
 <references>
-- `workflow.md` — архитектура и контракты пар
-- `state-machine.md` (в agent-manager/) — стадии, переходы, схема pipeline-state.json
-- `pair-protocol.md` — механика цикла doer↔critic
-- `handoff-protocol.md` — формат handoff, гигиена контекста
-- `README.md` — полный обзор, запуск, артефакты, структура
+- `workflow.md` — architecture and pair contracts
+- `state-machine.md` (in agent-manager/) — stages, transitions, pipeline-state.json schema
+- `pair-protocol.md` — doer↔critic loop mechanics
+- `handoff-protocol.md` — handoff format, context hygiene
+- `README.md` — full overview, launch, artifacts, structure
 </references>

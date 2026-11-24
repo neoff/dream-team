@@ -1,37 +1,37 @@
 ---
 name: agent-pipeline-run
-description: 'Точка входа агентского пайплайна dream-team: команды /dt… и dt-cli.sh. Пайплайн ведёт скрипт-оркестратор dt-run.sh, роли — отдельные opencode-агенты.'
+description: 'Entry point of the dream-team agent pipeline: /dt… commands and dt-cli.sh. The pipeline is run by the orchestrator script dt-run.sh, roles are separate opencode agents.'
 ---
 
 <arguments>$ARGUMENTS</arguments>
 
 <objective>
-Запустить или продолжить пайплайн. Это делает человек командой (агенту здесь делать нечего):
-оркестратор `agent-manager/dt-run.sh` сам ведёт пары planner⇄critic, coder⇄reviewer,
-tester⇄debugger до done/blocked.
+Start or resume the pipeline. A human does this with a command (an agent has nothing to do here):
+the orchestrator `agent-manager/dt-run.sh` runs the planner⇄critic, coder⇄reviewer,
+tester⇄debugger pairs itself until done/blocked.
 </objective>
 
 <how_to_start>
-⚠️ Команды ниже — для ЧЕЛОВЕКА. Агент, читающий это, ничего из них не запускает.
+⚠️ The commands below are for a HUMAN. An agent reading this runs none of them.
 
 ```bash
-# TUI opencode
-/dt-new <задача>         # или /dt-new @prompt.md — задача из файла
-/dt                      # продолжить
-/dt-add <правка>         # правка: прервать текущую роль и перепланировать
-/dt-issue <дополнение>   # в беклог: новый цикл после done
+# opencode TUI
+/dt-new <task>           # or /dt-new @prompt.md — task from a file
+/dt                      # resume
+/dt-add <amendment>      # amendment: interrupt the current role and replan
+/dt-issue <addition>     # to the backlog: a new cycle after done
 /dt-status · /dt-log · /dt-stop
 
-# терминал
+# terminal
 alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'
-dt --new @prompt.md      # на переднем плане; dt --bg --new … — в фоне
+dt --new @prompt.md      # foreground; dt --bg --new … — background
 dt --status · dt --log -f · dt --stop
 ```
 </how_to_start>
 
 <references>
-- `.opencode/skills/agent-manager/dt-commands.md` — команды, оркестратор, сторожа, гигиена
-- `.opencode/skills/agent-manager/state-machine.md` — стадии, переходы, формат состояния
-- `.opencode/skills/agent-pipeline/pair-protocol.md` — цикл doer↔critic
-- `.opencode/skills/agent-pipeline/handoff-protocol.md` — handoff и гигиена контекста
+- `.opencode/skills/agent-manager/dt-commands.md` — commands, orchestrator, watchers, hygiene
+- `.opencode/skills/agent-manager/state-machine.md` — stages, transitions, state format
+- `.opencode/skills/agent-pipeline/pair-protocol.md` — doer↔critic loop
+- `.opencode/skills/agent-pipeline/handoff-protocol.md` — handoff and context hygiene
 </references>

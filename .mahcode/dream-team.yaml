@@ -1,15 +1,15 @@
-# dream-team — какие модели у кого в ЭТОМ проекте. Менеджер читает файл при каждом
-# запуске лида, правки действуют со следующей пары. Id моделей — как в mahcode (get_models):
-#   wirellm/<model>            — WireLLM (нативно, MCP mahcode есть всегда)
+# dream-team — which models are used in THIS project. The manager reads the file before every
+# lead launch; edits take effect from the next pair. Model ids — as in mahcode (get_models):
+#   wirellm/<model>            — WireLLM (native, mahcode MCP always available)
 #   codex/<slug>[#effort]      — Codex CLI      (effort: low | medium | high | xhigh)
 #   claude-code/<opus|sonnet|haiku>
 #   antigravity/<model>        — agy
 #   opencode-go/<model>        — opencode
-# Менеджеру и лидам нужен MCP mahcode: wirellm — всегда; codex/claude/agy — если
-# mahcode зарегистрирован в их конфиге (инсталлятор это предлагает).
+# The manager and leads need mahcode MCP: wirellm — always; codex/claude/agy — if
+# mahcode is registered in their config (the installer offers it).
 
-manager: codex/gpt-6-luna#high        # менеджер: общается с тобой/CTO, решает между парами
-leads:   codex/gpt-6-luna#medium      # лиды пар: крутят цикл doer ⇄ critic
+manager: codex/gpt-6-luna#high        # manager: talks to you/CTO, decides between pairs
+leads:   codex/gpt-6-luna#medium      # pair leads: run the doer ⇄ critic loop
 
 roles:
   planner:  codex/gpt-6-luna#high
@@ -20,7 +20,7 @@ roles:
   debugger: codex/gpt-6-luna#high
 
 limits:
-  max_pair_iters: 5        # итераций doer ⇄ critic в паре до blocked
-  max_test_rounds: 3       # раундов test → bugfix до blocked
-  session_ttl: 86400       # сек. бездействия, после которых mahcode сам удаляет сессии лидов/ролей
-  wait_timeout: 60         # сек. одного wait_for_session (≤ 60: движки рвут MCP-вызов через 300 с), повторяется до конца хода
+  max_pair_iters: 5        # doer ⇄ critic iterations in a pair before blocked
+  max_test_rounds: 3       # test → bugfix rounds before blocked
+  session_ttl: 86400       # seconds of inactivity after which mahcode deletes lead/role sessions
+  wait_timeout: 60         # seconds per wait_for_session (≤ 60: engines cut an MCP call after 300 s), repeated until the turn ends

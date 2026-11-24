@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# dream-team: общая детерминированная часть (подключается из dt.sh и dt-run.sh).
-# cwd = корень проекта. Совместимо с bash 3.2 (macOS): без ассоциативных массивов.
+# dream-team: shared deterministic part (sourced by dt.sh and dt-run.sh).
+# cwd = project root. Compatible with bash 3.2 (macOS): no associative arrays.
 #
-# Состояние:
-#   .planning/agent-pipeline/state.env           — канон (KEY=value, читает/пишет только скрипт)
-#   .planning/agent-pipeline/pipeline-state.json — генерируется из state.env (для людей/ролей)
-#   .planning/agent-pipeline/history.jsonl       — журнал переходов (строка = событие)
-#   .planning/agent-pipeline/run.lock            — pid живого оркестратора
+# State:
+#   .planning/agent-pipeline/state.env           — canonical (KEY=value, read/written only by the script)
+#   .planning/agent-pipeline/pipeline-state.json — generated from state.env (for humans/roles)
+#   .planning/agent-pipeline/history.jsonl       — transition log (line = event)
+#   .planning/agent-pipeline/run.lock            — pid of the live orchestrator
 #
 
 P=.planning/agent-pipeline
@@ -23,10 +23,10 @@ state_defaults(){
 
 now_iso(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-# timeout есть не везде (чистый macOS) — тогда просто выполнить
+# timeout is not everywhere (plain macOS) — then just run
 tmo(){ local s="$1"; shift; if command -v timeout >/dev/null 2>&1; then timeout "${s}" "$@"; else "$@"; fi; }
 
-json_str(){ # экранирование строки для JSON
+json_str(){ # escape a string for JSON
   local s="$1"
   s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//$'\n'/\\n}"; s="${s//$'\t'/\\t}"; s="${s//$'\r'/}"
   printf '"%s"' "${s}"
@@ -34,7 +34,7 @@ json_str(){ # экранирование строки для JSON
 
 state_exists(){ [ -f "${P}/state.env" ] || [ -f "${P}/pipeline-state.json" ]; }
 
-# Прочитать state.env; для старых прогонов (только JSON) — восстановить что можно.
+# Read state.env; for old runs (JSON only) — recover what we can.
 state_load(){
   state_defaults
   if [ -f "${P}/state.env" ]; then
@@ -69,14 +69,14 @@ state_save(){
   state_json
 }
 
-history_add(){ # $1 action, $2 доп. поля JSON без фигурных скобок (опц.)
+history_add(){ # $1 action, $2 extra JSON fields without braces (opt.)
   local extra="${2:-}"
   [ -n "${extra}" ] && extra=", ${extra}"
   printf '{"timestamp": "%s", "step": %s, "cycle": %s, "stage": "%s", "action": "%s"%s}\n' \
     "$(now_iso)" "${STEP:-0}" "${CYCLE:-1}" "${STAGE:-}" "$1" "${extra}" >> "${P}/history.jsonl"
 }
 
-list_json(){ # $1 каталог -> JSON-массив путей файлов
+list_json(){ # $1 directory -> JSON array of file paths
   local out="" f
   for f in "$1"/*.md; do [ -e "${f}" ] || continue; out="${out}${out:+, }$(json_str "${f}")"; done
   printf '[%s]' "${out}"
@@ -88,7 +88,7 @@ state_json(){
   cat > "${P}/pipeline-state.json.tmp" <<EOF
 {
   "version": "3.0",
-  "generated_by": "dt-lib.sh (канон — state.env; руками не править)",
+  "generated_by": "dt-lib.sh (canonical — state.env; do not edit by hand)",
   "task_id": $(json_str "${TASK_ID}"),
   "created_at": $(json_str "${CREATED}"),
   "updated_at": $(json_str "$(now_iso)"),
@@ -118,9 +118,9 @@ EOF
   mv "${P}/pipeline-state.json.tmp" "${P}/pipeline-state.json"
 }
 
-# --- lock (pid оркестратора) --------------------------------------------------
+# --- lock (orchestrator pid) --------------------------------------------------
 lock_pid(){ [ -f "${P}/run.lock" ] && sed -n 's/^pid=//p' "${P}/run.lock" | head -1; }
-lock_alive(){ # 0 = жив оркестратор, держащий lock
+lock_alive(){ # 0 = the orchestrator holding the lock is alive
   local pid; pid="$(lock_pid)"
   [ -n "${pid}" ] || return 1
   kill -0 "${pid}" 2>/dev/null || return 1
@@ -129,15 +129,15 @@ lock_alive(){ # 0 = жив оркестратор, держащий lock
 lock_take(){ printf 'pid=%s\nstarted=%s\n' "$$" "$(now_iso)" > "${P}/run.lock"; }
 lock_release(){ [ "$(lock_pid)" = "$$" ] && rm -f "${P}/run.lock"; return 0; }
 
-# --- файлы ----------------------------------------------------------------------
+# --- files ----------------------------------------------------------------------
 mtime(){ stat -f %m "$1" 2>/dev/null || stat -c %Y "$1"; }
 
-pending_files(){ # $1 каталог -> файлы *.md в порядке поступления
+pending_files(){ # $1 directory -> *.md files in arrival order
   [ -d "$1" ] && find "$1" -maxdepth 1 -type f -name '*.md' | sed 's/\.md$//' | LC_ALL=C sort | sed 's/$/.md/' || true
 }
 has_pending(){ [ -n "$(pending_files "$1")" ]; }
 
-user_text(){ awk 'f{print} /^## Текст пользователя/{f=1}' "$1"; }
+user_text(){ awk 'f{print} /^## User text/{f=1}' "$1"; }
 
 ensure_dirs(){
   mkdir -p "${P}/handoffs" "${P}/bug-reports" "${P}/archive" "${P}/amendments/pending" \
@@ -146,7 +146,7 @@ ensure_dirs(){
 
 PASS_ARTIFACTS="plan-draft.md plan.md critique.md approval-planner.md approval-critic.md approval-reviewer.md review-report.md test-report.md debug-report.md clean-report.md"
 
-move_artifacts(){ # $1 каталог архива: артефакты прохода (планы, подписи, отчёты, баги)
+move_artifacts(){ # $1 archive directory: pass artifacts (plans, signatures, reports, bugs)
   local dst="$1" f
   mkdir -p "${dst}"
   for f in ${PASS_ARTIFACTS}; do
@@ -158,7 +158,7 @@ move_artifacts(){ # $1 каталог архива: артефакты прох�
   return 0
 }
 
-archive_cycle(){ # $1 каталог: всё по циклу; task-context.md — копией (нужен дальше)
+archive_cycle(){ # $1 directory: everything of the cycle; task-context.md — as a copy (still needed)
   local arch="$1" f
   move_artifacts "${arch}"
   for f in code-summary.md; do
@@ -178,8 +178,8 @@ latest_archive(){
 
 nn(){ printf '%02d' "$1"; }
 
-# Handoff от «менеджера» (оркестратора) следующей роли.
-# $1 путь, $2 кому, $3 DONE (строка), $4 ARTIFACTS (строки «- `путь` — что»), $5 FOR NEXT AGENT
+# Handoff from the "manager" (orchestrator) to the next role.
+# $1 path, $2 to whom, $3 DONE (line), $4 ARTIFACTS (lines "- `path` — what"), $5 FOR NEXT AGENT
 write_handoff(){
   cat > "$1" <<EOF
 # Handoff: manager → $2 (pair: ${PAIR}, iter ${ITER})
@@ -192,7 +192,7 @@ done
 
 - $3
 
-## ARTIFACTS (читать ТОЛЬКО это, больше ничего не нужно)
+## ARTIFACTS (read ONLY these, nothing else is needed)
 
 $4
 
@@ -202,19 +202,19 @@ $5
 
 ## OPEN / RISKS
 
-- Нет.
+- None.
 
 ## CONTEXT RESET
 
-Этот handoff + перечисленные ARTIFACTS = ВСЁ, что нужно. Предыдущий диалог не требуется
-и недоступен. Поднимайся с чистого контекста.
+This handoff + the listed ARTIFACTS = EVERYTHING needed. The previous dialogue is not required
+and not available. Start from a clean context.
 EOF
 }
 
-# --- переходы, общие для dt.sh и dt-run.sh -----------------------------------------
+# --- transitions shared by dt.sh and dt-run.sh -----------------------------------------
 
-# new: старое → архив, каркас, task-context (задача дословно из файла $1), state, handoff.
-do_new(){ # $1 файл с текстом задачи
+# new: old → archive, scaffold, task-context (task verbatim from file $1), state, handoff.
+do_new(){ # $1 file with the task text
   local src="$1" ts dst f ho
   ts="$(date +%Y%m%d-%H%M%S)"
   if state_exists; then
@@ -230,22 +230,22 @@ do_new(){ # $1 файл с текстом задачи
     DT_ARCHIVED="${dst}"
   fi
   ensure_dirs
-  { printf '# Task Context\n\n## Задача (дословно)\n'; cat "${src}"; printf '\n'; } > "${P}/task-context.md"
+  { printf '# Task Context\n\n## Task (verbatim)\n'; cat "${src}"; printf '\n'; } > "${P}/task-context.md"
   rm -f "${src}"
   : > "${P}/history.jsonl"
   state_defaults
   TASK_ID="${ts}"
   ho="${P}/handoffs/step-00-manager.md"
-  write_handoff "${ho}" planner "Новая задача принята (/dt-new)." \
-    "- \`${P}/task-context.md\` — задача дословно" \
-    "- Построй plan-draft.md по задаче из task-context.md (фазы → волны → атомарные задачи,
-  у каждой RED-тест, файлы, критерии приёмки). Волны размечай заголовками \`### Wave X.Y: …\`."
+  write_handoff "${ho}" planner "New task accepted (/dt-new)." \
+    "- \`${P}/task-context.md\` — the task verbatim" \
+    "- Build plan-draft.md for the task from task-context.md (phases → waves → atomic tasks,
+  each with a RED test, files, acceptance criteria). Mark waves with headings \`### Wave X.Y: …\`."
   IN_HANDOFF="${ho}"; LAST_HANDOFF="${ho}"
   history_add created
   state_save
 }
 
-# replan: правки из amendments/pending → task-context, архив прохода, planning. 0 = было что применять.
+# replan: amendments from amendments/pending → task-context, archive the pass, planning. 0 = something was applied.
 do_replan(){
   local files arch ho prev_plan summary f
   files="$(pending_files "${P}/amendments/pending")"
@@ -254,29 +254,29 @@ do_replan(){
   arch="${P}/archive/replan-step-$(nn "${STEP}")"
   move_artifacts "${arch}"
   mkdir -p "${P}/amendments/applied" "${P}/handoffs"
-  { printf '\n## Правки (/dt-add) — шаг %s\n' "$(nn "${STEP}")"
+  { printf '\n## Amendments (/dt-add) — step %s\n' "$(nn "${STEP}")"
     while IFS= read -r f; do printf '\n### %s\n' "$(basename "${f}")"; user_text "${f}"; done <<<"${files}"
   } >> "${P}/task-context.md"
   while IFS= read -r f; do mv "${f}" "${P}/amendments/applied/"; done <<<"${files}"
   STAGE=planning; PAIR=plan; ITER=1; WAVE=0; TOTAL_WAVES=0; WAVE_ID=""; BUGFIX=0; TEST_ROUND=0
   ho="${P}/handoffs/step-$(nn "${STEP}")-manager.md"
-  prev_plan=""; [ -f "${arch}/plan.md" ] && prev_plan="- \`${arch}/plan.md\` — прежний план (до правок), для сравнения"
-  summary=""; [ -f "${P}/code-summary.md" ] && summary="- \`${P}/code-summary.md\` — что уже реализовано (плюс \`git log\`)"
-  write_handoff "${ho}" planner "Пришли правки пользователя (/dt-add); текущая стадия прервана, артефакты прохода → \`${arch}/\`." \
-    "- \`${P}/task-context.md\` — задача + раздел «Правки (/dt-add) — шаг $(nn "${STEP}")» (дословно)
+  prev_plan=""; [ -f "${arch}/plan.md" ] && prev_plan="- \`${arch}/plan.md\` — the previous plan (before amendments), for comparison"
+  summary=""; [ -f "${P}/code-summary.md" ] && summary="- \`${P}/code-summary.md\` — what is already implemented (plus \`git log\`)"
+  write_handoff "${ho}" planner "User amendments arrived (/dt-add); the current stage was interrupted, pass artifacts → \`${arch}/\`." \
+    "- \`${P}/task-context.md\` — task + section \"Amendments (/dt-add) — step $(nn "${STEP}")\" (verbatim)
 ${prev_plan}
 ${summary}" \
-    "- ПЕРЕПЛАН. Задача изменилась: см. раздел «Правки» в task-context.md. Часть уже может быть
-  реализована (code-summary.md, \`git log\`). Построй plan-draft.md, который доводит
-  СУЩЕСТВУЮЩИЙ код до задачи с правками: что оставить, что переделать, что добавить. Не
-  переписывай готовое без причины. Правки важнее исходного текста там, где противоречат."
+    "- REPLAN. The task changed: see the \"Amendments\" section in task-context.md. Part of it may already be
+  implemented (code-summary.md, \`git log\`). Build plan-draft.md that brings the
+  EXISTING code to the amended task: what to keep, what to redo, what to add. Do not
+  rewrite finished work without reason. Amendments override the original text where they conflict."
   NEXT_ROLE=planner; NEXT_MODE=work; IN_HANDOFF="${ho}"; LAST_HANDOFF="${ho}"; BLOCK_REASON=""
   history_add replan '"reason": "amendment"'
   state_save
   return 0
 }
 
-# cycle: беклог → новый цикл. 0 = цикл начат, 1 = беклог пуст.
+# cycle: backlog → new cycle. 0 = cycle started, 1 = backlog empty.
 do_cycle(){
   local files arch ho f arts
   files="$(pending_files "${P}/backlog/pending")"
@@ -292,22 +292,22 @@ do_cycle(){
   fi
   arts=""
   for f in plan.md code-summary.md clean-report.md; do
-    if [ -n "${arch}" ] && [ -f "${arch}/${f}" ]; then arts="${arts}- \`${arch}/${f}\` — ${f} цикла ${CYCLE}"$'\n'; fi
+    if [ -n "${arch}" ] && [ -f "${arch}/${f}" ]; then arts="${arts}- \`${arch}/${f}\` — ${f} of cycle ${CYCLE}"$'\n'; fi
   done
-  [ -n "${arts}" ] || arts="- (артефактов цикла ${CYCLE} не найдено — смотри код и \`git log\`)"
+  [ -n "${arts}" ] || arts="- (no artifacts of cycle ${CYCLE} found — look at the code and \`git log\`)"
   CYCLE=$((CYCLE + 1)); STEP=$((STEP + 1))
   mkdir -p "${P}/backlog/taken" "${P}/handoffs"
-  { printf '\n## Цикл %s — дополнения (/dt-issue)\n' "${CYCLE}"
+  { printf '\n## Cycle %s — additions (/dt-issue)\n' "${CYCLE}"
     while IFS= read -r f; do printf '\n### %s\n' "$(basename "${f}")"; user_text "${f}"; done <<<"${files}"
   } >> "${P}/task-context.md"
   while IFS= read -r f; do printf '\ncycle: %s\n' "${CYCLE}" >> "${f}"; mv "${f}" "${P}/backlog/taken/"; done <<<"${files}"
   STAGE=planning; PAIR=plan; ITER=1; WAVE=0; TOTAL_WAVES=0; WAVE_ID=""; BUGFIX=0; TEST_ROUND=0
   ho="${P}/handoffs/step-$(nn "${STEP}")-manager.md"
-  write_handoff "${ho}" planner "Цикл $((CYCLE - 1)) завершён (clean). В беклоге были дополнения → начат цикл ${CYCLE}." \
-    "- \`${P}/task-context.md\` — задача + раздел «Цикл ${CYCLE} — дополнения (/dt-issue)» (дословно)
+  write_handoff "${ho}" planner "Cycle $((CYCLE - 1)) finished (clean). The backlog had additions → cycle ${CYCLE} started." \
+    "- \`${P}/task-context.md\` — task + section \"Cycle ${CYCLE} — additions (/dt-issue)\" (verbatim)
 ${arts}" \
-    "- ИНКРЕМЕНТ. Цикл $((CYCLE - 1)) сделан и проверен (clean). Спланируй ТОЛЬКО дополнения цикла
-  ${CYCLE} поверх готового кода; регрессии прошлого цикла должны остаться зелёными."
+    "- INCREMENT. Cycle $((CYCLE - 1)) is done and verified (clean). Plan ONLY the additions of cycle
+  ${CYCLE} on top of the finished code; the previous cycle's regressions must stay green."
   NEXT_ROLE=planner; NEXT_MODE=work; IN_HANDOFF="${ho}"; LAST_HANDOFF="${ho}"; BLOCK_REASON=""
   history_add new-cycle
   state_save

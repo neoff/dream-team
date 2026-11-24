@@ -1,83 +1,83 @@
-<!-- dream-team: команды /dt и оркестратор dt-run.sh -->
+<!-- dream-team: /dt commands and the dt-run.sh orchestrator -->
 <purpose>
-Как устроен запуск пайплайна. Пайплайн ведёт НЕ модель, а детерминированный скрипт-оркестратор
-`dt-run.sh`: он сам запускает роли, читает их STATUS, пишет состояние, обрабатывает правки и
-беклог. Модели работают только внутри ролей (planner, critic, coder, reviewer, tester, debugger).
+How the pipeline launch works. The pipeline is run NOT by a model but by the deterministic orchestrator script
+`dt-run.sh`: it launches the roles itself, reads their STATUS, writes the state, handles amendments and the
+backlog. Models work only inside roles (planner, critic, coder, reviewer, tester, debugger).
 </purpose>
 
 <files>
-| Файл          | Что делает                                                                  |
+| File          | What it does                                                                |
 | ------------- | --------------------------------------------------------------------------- |
-| `dt-cli.sh`   | единый вход: терминал и слэш-команды (`--status`, `--log`, `--stop`, `--bg`) |
-| `dt.sh`       | разбор сообщения → `ACTION=stop` (+MSG) или `ACTION=run`; intake, `new`       |
-| `dt-run.sh`   | оркестратор: цикл ролей по state-machine, сторожа, гигиена сессий            |
-| `dt-lib.sh`   | общее: state, lock, архивы, `new` / `replan` / `cycle` / `finalize`           |
+| `dt-cli.sh`   | single entry: terminal and slash commands (`--status`, `--log`, `--stop`, `--bg`) |
+| `dt.sh`       | message parsing → `ACTION=stop` (+MSG) or `ACTION=run`; intake, `new`         |
+| `dt-run.sh`   | orchestrator: role loop per the state machine, watchers, session hygiene     |
+| `dt-lib.sh`   | shared: state, lock, archives, `new` / `replan` / `cycle` / `finalize`        |
 </files>
 
 <commands>
-| Слэш-команда (TUI)        | Терминал (`alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'`) | Что делает |
+| Slash command (TUI)       | Terminal (`alias dt='bash .opencode/skills/agent-manager/dt-cli.sh'`) | What it does |
 | ------------------------- | ------------------------ | ---------- |
-| `/dt`                     | `dt`                     | продолжить; пайплайна нет → нужна задача (`/dt <задача>`) |
-| `/dt-new <задача>`        | `dt --new <задача>`      | новая задача; старое → архив. Незаконченную — только `--force` |
-| `/dt-new @prompt.md`      | `dt --new @prompt.md`    | задача из файла (огромные промпты; бэктики/кавычки — без ограничений) |
-| `/dt-resume`              | `dt --resume`            | продолжить с места остановки |
-| `/dt-add <правка>`        | `dt --add <правка>`      | правка задачи: живой прогон прерывает текущую роль и перепланирует |
-| `/dt-issue <дополнение>`  | `dt --issue <текст>`     | в беклог: после `done` — новый цикл (сделанное + дополнения) |
-| `/dt-status`              | `dt --status`            | стадия, пара, итерация, волна, текущая роль, сколько идёт, журнал |
-| `/dt-log`                 | `dt --log [N]`, `dt --log -f` | журнал оркестратора (`.planning/agent-pipeline/run.log`) |
-| `/dt-stop`                | `dt --stop`              | остановить: роль прерывается, состояние сохраняется; продолжить — `/dt` |
+| `/dt`                     | `dt`                     | resume; no pipeline → a task is needed (`/dt <task>`) |
+| `/dt-new <task>`          | `dt --new <task>`        | new task; old → archive. Over an unfinished one — only with `--force` |
+| `/dt-new @prompt.md`      | `dt --new @prompt.md`    | task from a file (huge prompts; backticks/quotes — no limits) |
+| `/dt-resume`              | `dt --resume`            | resume from where it stopped |
+| `/dt-add <amendment>`     | `dt --add <amendment>`   | task amendment: a live run interrupts the current role and replans |
+| `/dt-issue <addition>`    | `dt --issue <text>`      | to the backlog: after `done` — a new cycle (done work + additions) |
+| `/dt-status`              | `dt --status`            | stage, pair, iteration, wave, current role, elapsed time, log |
+| `/dt-log`                 | `dt --log [N]`, `dt --log -f` | orchestrator log (`.planning/agent-pipeline/run.log`) |
+| `/dt-stop`                | `dt --stop`              | stop: the role is interrupted, state is kept; resume — `/dt` |
 
-Слэш-команды запускают оркестратор в фоне (`--bg`) и сразу возвращают ответ; TUI свободен.
-Из терминала `dt …` без `--bg` ведёт прогон на переднем плане (Ctrl-C = `--stop`).
-Текст `@путь` в `/dt-add`, `/dt-issue` тоже читается из файла.
-Ограничение слэш-команд: обратная кавычка в тексте обрезает его (так opencode разбирает
-`` !`…` ``) — для текста с кодом используй `@файл`.
+Slash commands start the orchestrator in the background (`--bg`) and return immediately; the TUI stays free.
+From the terminal `dt …` without `--bg` runs in the foreground (Ctrl-C = `--stop`).
+`@path` text in `/dt-add`, `/dt-issue` is also read from the file.
+Slash command limitation: a backtick in the text truncates it (that is how opencode parses
+`` !`…` ``) — use `@file` for text with code.
 </commands>
 
 <orchestrator>
-Цикл `dt-run.sh` (одна роль = один `opencode run --agent agent-<роль>` со свежим контекстом):
+The `dt-run.sh` loop (one role = one `opencode run --agent agent-<role>` with a fresh context):
 
 ```
-plan:  planner → critic ─needs-revision→ planner … ─approved→ planner[подпись] ─approved→ code
-code:  по волнам (`### Wave X.Y:` в plan.md): coder → reviewer ─needs-revision→ coder …
-       ─approved→ следующая волна | test
-test:  tester → debugger ─needs-revision→ tester … ─bugs-found→ code[фикс] → reviewer → test
-       ─clean→ беклог пуст ? done : новый цикл (plan)
-любая роль ─blocked→ blocked · итераций пары > DT_MAX_PAIR_ITERS → blocked
-раундов тестирования ≥ DT_MAX_TEST_ROUNDS → blocked
+plan:  planner → critic ─needs-revision→ planner … ─approved→ planner[sign] ─approved→ code
+code:  by waves (`### Wave X.Y:` in plan.md): coder → reviewer ─needs-revision→ coder …
+       ─approved→ next wave | test
+test:  tester → debugger ─needs-revision→ tester … ─bugs-found→ code[fix] → reviewer → test
+       ─clean→ backlog empty ? done : new cycle (plan)
+any role ─blocked→ blocked · pair iterations > DT_MAX_PAIR_ITERS → blocked
+test rounds ≥ DT_MAX_TEST_ROUNDS → blocked
 ```
 
-Роль получает в промпте путь входного handoff и ТОЧНЫЙ путь выходного; оркестратор читает
-первое слово под `## STATUS`. Нет handoff / неверный STATUS → один повтор с замечанием
-(`DT_MAX_NUDGES`), затем blocked. Состояние — `state.env` (канон), `pipeline-state.json`
-(генерируется), `history.jsonl`, `run.log`.
+The role gets the input handoff path and the EXACT output path in its prompt; the orchestrator reads
+the first word under `## STATUS`. No handoff / wrong STATUS → one retry with a remark
+(`DT_MAX_NUDGES`), then blocked. State — `state.env` (canonical), `pipeline-state.json`
+(generated), `history.jsonl`, `run.log`.
 
-Сторожа во время роли (опрос каждые `DT_POLL_SEC`, 3 с):
-- `amendments/pending` не пуст → роль прерывается → переплан (`DT_ADD_INTERRUPT=step` —
-  дождаться конца шага);
-- `stop.request` (`/dt-stop`) или Ctrl-C → роль прерывается, шаг повторится при продолжении;
-- таймаут роли (`DT_TIMEOUT_<РОЛЬ>`, мин) и «зависание» (handoff записан, процесс не выходит
-  дольше `DT_HANG_GRACE_SEC`) → процесс завершается, результат берётся из handoff.
+Watchers during a role (polled every `DT_POLL_SEC`, 3 s):
+- `amendments/pending` not empty → the role is interrupted → replan (`DT_ADD_INTERRUPT=step` —
+  wait for the step to finish);
+- `stop.request` (`/dt-stop`) or Ctrl-C → the role is interrupted, the step repeats on resume;
+- role timeout (`DT_TIMEOUT_<ROLE>`, min) and "hang" (handoff written, the process does not exit
+  for longer than `DT_HANG_GRACE_SEC`) → the process is terminated, the result is taken from the handoff.
 
-Гигиена:
-- сессия каждой роли экспортируется в `sessions/step-NN-<роль>.session.json` и удаляется из
-  opencode (`DT_KEEP_SESSIONS=1` — оставить). Иначе фоновый сервис opencode «воскрешает»
-  прерванные сессии, и появляются зомби-роли;
-- `run.lock` = pid оркестратора; второй не стартует. Роль-сирота после `kill -9` добивается
-  при следующем старте;
-- `.planning/` вносится в `.git/info/exclude`; отчёты, которые роль положила в корень,
-  переносятся в `stray/`.
+Hygiene:
+- each role's session is exported to `sessions/step-NN-<role>.session.json` and deleted from
+  opencode (`DT_KEEP_SESSIONS=1` — keep). Otherwise the opencode background service "resurrects"
+  interrupted sessions, and zombie roles appear;
+- `run.lock` = orchestrator pid; a second one does not start. An orphan role after `kill -9` is killed
+  on the next start;
+- `.planning/` is added to `.git/info/exclude`; reports a role put in the root
+  are moved to `stray/`.
 </orchestrator>
 
 <transitions_on_input>
-- **new**: старое состояние → `archive/task-<id>-<ts>/`, каркас, `task-context.md` (задача
-  дословно), handoff planner'у, `state.env`.
-- **add**: правка → `amendments/pending/add-<ts>.md`. Живой прогон подхватит за секунды;
-  иначе запускается оркестратор, и он сразу перепланирует: правка → `amendments/applied/`,
-  раздел «Правки» в `task-context.md`, артефакты прохода → `archive/replan-step-NN/`, код
-  остаётся и учитывается в новом плане.
-- **issue**: дополнение → `backlog/pending/issue-<ts>.md`. На `clean` оркестратор архивирует
-  цикл в `archive/cycle-N/`, дописывает «Цикл N+1 — дополнения» в `task-context.md` и
-  начинает новый цикл с planner'а.
-- **resume**: при `done` и пустом беклоге / `blocked` без правок — отказ без запуска модели.
+- **new**: old state → `archive/task-<id>-<ts>/`, scaffold, `task-context.md` (task
+  verbatim), handoff to the planner, `state.env`.
+- **add**: amendment → `amendments/pending/add-<ts>.md`. A live run picks it up within seconds;
+  otherwise the orchestrator is started, and it replans right away: amendment → `amendments/applied/`,
+  "Amendments" section in `task-context.md`, pass artifacts → `archive/replan-step-NN/`, the code
+  stays and is taken into account in the new plan.
+- **issue**: addition → `backlog/pending/issue-<ts>.md`. On `clean` the orchestrator archives
+  the cycle into `archive/cycle-N/`, appends "Cycle N+1 — additions" to `task-context.md` and
+  starts a new cycle with the planner.
+- **resume**: on `done` with an empty backlog / `blocked` without amendments — refusal without starting a model.
 </transitions_on_input>

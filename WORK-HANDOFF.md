@@ -1,136 +1,146 @@
-# Рабочий хендоф — агентский пайплайн dream-team
+# Work handoff — dream-team agent pipeline
 
-Снимок состояния на 2026-11-04. Эта папка (`wirellm`) — дебаг-копия/источник; её можно
-переносить. Ниже всё, чтобы продолжить с любого места.
+State snapshot as of 2026-11-04 (updated by the v3/v4/v5 sections below). This folder (`wirellm`) was the
+debug copy/source; it can be moved. Below is everything needed to continue from any point.
 
-## Что это
+## What this is
 
-Многоагентный конвейер для **opencode**: 3 антагонистичные пары (planner⇄critic,
-coder⇄reviewer, tester⇄debugger) под диспетчером-Менеджером. Полное описание архитектуры —
-в `HANDOFF.md` рядом. Этот файл — про статус работы и как продолжить.
+A multi-agent pipeline for **opencode**: 3 antagonistic pairs (planner⇄critic,
+coder⇄reviewer, tester⇄debugger) under a Manager-dispatcher. Full architecture description —
+in `HANDOFF.md` next to this file. This file is about the work status and how to continue.
 
-## Репозитории и состояние (на момент снимка)
+## Repositories and state (at snapshot time)
 
-| что | репо | ветка | HEAD | примечание |
+| what | repo | branch | HEAD | note |
 |-----|------|-------|------|------------|
-| источник (дебаг-копия) | `git@github.com:neoff/crypto-bits-ai.git` | `wirellm` | `4c5d7d8` | эта папка |
-| дистрибутив | `git@github.com:neoff/dream-team.git` | `main` | `e77632b` | **public**, с install.sh |
-| площадка валидации | `crypto-bits-ai` (локально `../wirellm-skiltest`) | `skill-test` | merge `da5ec91` | прогон emailvalidate до `done` |
+| source (debug copy) | `git@github.com:neoff/crypto-bits-ai.git` | `wirellm` | `4c5d7d8` | this folder |
+| distribution | `git@github.com:neoff/dream-team.git` | `main` | `e77632b` | **public**, with install.sh |
+| validation ground | `crypto-bits-ai` (locally `../wirellm-skiltest`) | `skill-test` | merge `da5ec91` | emailvalidate run to `done` |
 
-- `crypto-bits-ai` ветка `main` — ПУСТАЯ по задумке, НЕ трогать.
-- `dream-team` — чистый дистрибутив: `.opencode/` + `HANDOFF.md` + `README.md` + `install.sh` +
-  `.gitignore`. Без `.planning/` и без тестового кода.
+- `crypto-bits-ai` branch `main` — EMPTY by design, do NOT touch.
+- `dream-team` — clean distribution: `.opencode/` + `HANDOFF.md` + `README.md` + `install.sh` +
+  `.gitignore`. Without `.planning/` and without test code.
 
-## Установка / обновление (одна команда)
+## Install / update (one command)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | bash
 ```
 
-Спрашивает харнес (opencode / claude / оба) и область (local / global). install == update
-(повторный запуск перезаписывает наши файлы). Неинтерактивно:
-`DREAM_TEAM_HARNESS=opencode|claude|both DREAM_TEAM_SCOPE=global|local`.
-Пути: opencode `~/.config/opencode/{agents,skills}` | `.opencode/…`; claude
+Asks for the harness (mahcode / opencode / claude / both) and scope (local / global). install == update
+(re-running overwrites our files). Non-interactively:
+`DREAM_TEAM_HARNESS=mahcode|opencode|claude|both DREAM_TEAM_SCOPE=global|local`.
+Paths: opencode `~/.config/opencode/{agents,skills}` | `.opencode/…`; claude
 `~/.claude/{agents,skills}` | `.claude/…`.
 
-## Запуск пайплайна
+## Running the pipeline (v2, historical)
 
 ```bash
-cd <проект с .opencode/>
-opencode run --agent agent-manager "Твоя задача"
-opencode run --standalone --agent agent-manager "resume"   # продолжить прерванный прогон
+cd <project with .opencode/>
+opencode run --agent agent-manager "Your task"
+opencode run --standalone --agent agent-manager "resume"   # resume an interrupted run
 ```
 
-Уроки resume (важно): `--resume`-флага НЕТ; resume = сообщение `resume` (без дефисов).
-Канон — `--standalone` (корень в cwd, видит `.planning/`); общий демон `:4096` может быть
-укоренён в другой папке → «состояния нет». `-s <id>` — только для живого просмотра в TUI
-(поднимает устаревший контекст, может дёрнуть step назад). Петлю resume-до-`done` крутит
-обёртка СНАРУЖИ, не менеджер (ему запрещён shell-opencode — анти-рекурсия).
+Resume lessons (important): there is NO `--resume` flag; resume = the message `resume` (no dashes).
+Canonical — `--standalone` (root in cwd, sees `.planning/`); the shared daemon `:4096` may be
+rooted in another folder → "no state". `-s <id>` — only for live viewing in the TUI
+(brings up stale context, may push the step back). The resume-until-`done` loop is run by a wrapper
+OUTSIDE, not by the manager (shell-opencode is forbidden for it — anti-recursion).
 
-## Сделано
+## Done
 
-- Переархитектура в антагонистичные пары + диспетчер; роли — subagents со свежим контекстом,
-  обмен через handoff-файлы на диске; per-step sync `pipeline-state.json`.
-- Закрыта runaway-рекурсия (ЗАПРЕТЫ менеджеру на shell-opencode / самоспавн / skill-вход).
-- Фикс стоп-шорта: менеджер не отчитывается юзеру до `done`/`blocked`.
-- Фикс resume (сообщение `resume`, не флаг) + урок про `--standalone`.
-- Фикс пути `state-machine.md` (лежит в `agent-manager/`).
-- Сквозная валидация на `emailvalidate` → `done`: TDD RED→GREEN, coverage 98.6%, фаззинг
-  13.3M execs, `-race`, ReDoS/CRLF — чисто. Рекурсии нет.
-- Вынос в отдельный public-репо `dream-team` + `install.sh` (curl|bash, install==update),
-  протестирован end-to-end (local/global, update-идемпотентность, .gitignore-блок).
+- Re-architecture into antagonistic pairs + dispatcher; roles are subagents with a fresh context,
+  exchange through handoff files on disk; per-step sync of `pipeline-state.json`.
+- Runaway recursion closed (PROHIBITIONS for the manager on shell-opencode / self-spawn / skill entry).
+- Stop-short fix: the manager does not report to the user before `done`/`blocked`.
+- Resume fix (the message `resume`, not a flag) + the `--standalone` lesson.
+- Path fix for `state-machine.md` (lives in `agent-manager/`).
+- End-to-end validation on `emailvalidate` → `done`: TDD RED→GREEN, coverage 98.6%, fuzzing
+  13.3M execs, `-race`, ReDoS/CRLF — clean. No recursion.
+- Moved to a separate public repo `dream-team` + `install.sh` (curl|bash, install==update),
+  tested end-to-end (local/global, update idempotency, .gitignore block).
 
-## v3: оркестратор-скрипт вместо LLM-менеджера (2026-11-05)
+## v3: orchestrator script instead of an LLM manager (2026-11-05)
 
-- Пайплайн ведёт `skills/agent-manager/dt-run.sh` (bash, детерминированно): роль = отдельный
-  `opencode run --standalone --agent agent-<роль>`, точные пути входного/выходного handoff,
-  переход по `## STATUS` (`transition()`), state в `state.env` (JSON генерируется).
-  `dt-lib.sh` — общее (state, lock по pid, архивы, new/replan/cycle/finalize), `dt.sh` — разбор
-  входа, `dt-cli.sh` — вход (`--status/--log/--stop/--bg/--stdin`). `agent-manager` — только
-  пересказ ответа для слэш-команд.
-- Почему: LLM-менеджер на `wirellm/main` пропускал пары review/test, не вёл state, не делал
-  replan между шагами, сам писал код, спавнил себя (`permissions` не держали).
-- Сторожа: правка прерывает роль за секунды → переплан; stop; таймаут; «зависший» `opencode
-  run`; сирота после kill -9. Гигиена: сессии ролей → export в `sessions/` + delete (иначе
-  фоновый сервис воскрешает их — зомби); незакоммиченный мусор ролей → `stray/step-NN/`;
+- The pipeline is run by `skills/agent-manager/dt-run.sh` (bash, deterministic): role = a separate
+  `opencode run --standalone --agent agent-<role>`, exact input/output handoff paths,
+  transition by `## STATUS` (`transition()`), state in `state.env` (JSON is generated).
+  `dt-lib.sh` — shared (state, pid lock, archives, new/replan/cycle/finalize), `dt.sh` — input
+  parsing, `dt-cli.sh` — entry (`--status/--log/--stop/--bg/--stdin`). `agent-manager` — only
+  relays the reply for slash commands.
+- Why: the LLM manager on `wirellm/main` skipped the review/test pairs, did not keep state, did not
+  replan between steps, wrote code itself, spawned itself (`permissions` did not hold).
+- Watchers: an amendment interrupts the role within seconds → replan; stop; timeout; a "hung" `opencode
+  run`; an orphan after kill -9. Hygiene: role sessions → export to `sessions/` + delete (otherwise
+  the background service resurrects them — zombies); uncommitted role junk → `stray/step-NN/`;
   `.planning/` → `.git/info/exclude`.
-- Тесты: `bash tests/run.sh` — 10 сценариев на моке opencode (`tests/bin/opencode`), ~2 мин.
-- Живая проверка (scratchpad, `wirellm/main`): Fib → `/dt-add Seq` во время кодера (прерван за
-  1 с, переплан с волной Seq) → 4 волны → test (debugger `clean`) → беклог CLI → цикл 2 → done.
-  51 шаг, 40 сессий, все удалены, процессов/lock не осталось, тесты зелёные.
-- Уроки opencode v2.0.32: команды из `{command,commands}/**/*.md`; `` !`cmd` `` в шаблоне идёт
-  ДО модели; `run -- "msg"` дублирует сообщение; без `</dev/null` `run` ждёт stdin; сервис
-  `opencode serve --service` возобновляет прерванные сессии; роль с `mode: subagent`
-  запускается через `--agent`; glob моделей не видит `.planning/`.
+- Tests: `bash tests/run.sh` — 10 scenarios on an opencode mock (`tests/bin/opencode`), ~2 min.
+- Live check (scratchpad, `wirellm/main`): Fib → `/dt-add Seq` during the coder (interrupted within
+  1 s, replan with a Seq wave) → 4 waves → test (debugger `clean`) → CLI backlog → cycle 2 → done.
+  51 steps, 40 sessions, all deleted, no processes/lock left, tests green.
+- opencode v2.0.32 lessons: commands from `{command,commands}/**/*.md`; `` !`cmd` `` in a template runs
+  BEFORE the model; `run -- "msg"` duplicates the message; without `</dev/null` `run` waits for stdin; the service
+  `opencode serve --service` resumes interrupted sessions; a role with `mode: subagent`
+  is launched via `--agent`; model globs do not see `.planning/`.
 
-## Открыто / TODO
+## Open / TODO
 
-1. **claude-харнес** не адаптирован (отложено). С оркестратором стало проще: нужен лишь способ
-   запускать роль в Claude Code (`claude -p --agent …`) вместо `opencode run` в `run_role`.
-2. Слэш-команды в TUI проверены симуляцией раскрытия шаблона, не руками в TUI — прогнать
-   `/dt-new`, `/dt-status`, `/dt-add` в живом TUI.
-3. Роли всё ещё кладут `coverage.out` и временные файлы в корень (сторож убирает в `stray/`) —
-   можно ужесточить подсказку в guide'ах tester/reviewer/coder.
-4. Глобальная установка (`~/.config/opencode`) с оркестратором не прогонялась.
+1. **claude harness** not adapted (postponed). With the orchestrator it became simpler: only a way
+   to run a role in Claude Code (`claude -p --agent …`) instead of `opencode run` in `run_role` is needed.
+2. Slash commands in the TUI were checked by simulating template expansion, not by hand in the TUI — run
+   `/dt-new`, `/dt-status`, `/dt-add` in a live TUI.
+3. Roles still put `coverage.out` and temp files in the root (the watcher moves them to `stray/`) —
+   the hint in the tester/reviewer/coder guides can be tightened.
+4. A global install (`~/.config/opencode`) with the orchestrator has not been run.
 
-## Карта файлов
+## File map
 
 ```
 .opencode/agents/agent-{manager,planner,critic,coder,reviewer,tester,debugger}.md
 .opencode/skills/agent-pipeline/{SKILL,README,workflow,pair-protocol,handoff-protocol}.md
 .opencode/skills/agent-pipeline-run/SKILL.md
 .opencode/skills/agent-manager/{SKILL,state-machine,dt-commands}.md
-.opencode/skills/agent-manager/dt-{run,cli,lib}.sh, dt.sh   # оркестратор и вход
-.opencode/commands/dt*.md                                  # слэш-команды
-tests/run.sh, tests/bin/opencode                           # мок-тесты оркестратора
+.opencode/skills/agent-manager/dt-{run,cli,lib}.sh, dt.sh   # orchestrator and entry
+.opencode/commands/dt*.md                                  # slash commands
+tests/run.sh, tests/bin/opencode                           # orchestrator mock tests
 .opencode/skills/agent-<role>/{SKILL,*-guide}.md
-HANDOFF.md        # архитектура пайплайна (детально)
-WORK-HANDOFF.md   # этот файл
+.mahcode/                                                  # v4 MCP version for mahcode
+HANDOFF.md        # pipeline architecture (detailed)
+WORK-HANDOFF.md   # this file
 ```
 
-## Как продолжить после переноса папки
+## How to continue after moving the folder
 
-1. Папка самодостаточна (`.opencode/` + оба handoff). Git-история — в репо `crypto-bits-ai`
-   ветка `wirellm`; при желании можно переинициализировать или склонировать `dream-team`.
-2. Правки вести в `.opencode/`, затем синк в `dream-team` (rsync `.opencode/` + docs) и push
-   в `main` — дистрибутив обновится, `curl|bash` подтянет.
-3. Следующий шаг по плану — пункт 1 из «Открыто»: нативная адаптация под Claude Code.
+1. The folder is self-contained (`.opencode/` + both handoffs). Git history — in the `crypto-bits-ai` repo,
+   branch `wirellm`; you can re-init or clone `dream-team` if you like.
+2. Make edits in `.opencode/` / `.mahcode/`, push to `main` of `dream-team` — the distribution updates,
+   `curl|bash` pulls it.
+3. Next step per plan — item 1 of "Open": native Claude Code adaptation.
 
-## v4: mahcode + MCP, без bash (2026-11-22)
-- Схема: менеджер (сессия mahcode; вход — блок в AGENTS.md, `@dream-team new|add|issue|status|continue|stop`)
-  → лиды пар отдельными сессиями через MCP mahcode → роли тоже top-level сессиями. Модели —
-  `.mahcode/dream-team.yaml` (manager / leads / roles.*). Файлы: `.mahcode/skills/dream-team/`
+## v4: mahcode + MCP, no bash (2026-11-22)
+- Scheme: manager (mahcode session; entry — a block in AGENTS.md, `@dream-team new|add|issue|status|continue|stop`)
+  → pair leads as separate sessions via the mahcode MCP → roles also as top-level sessions. Models —
+  `.mahcode/dream-team.yaml` (manager / leads / roles.*). Files: `.mahcode/skills/dream-team/`
   (SKILL, manager, lead, mcp, intake, handoff-protocol, roles/), `.mahcode/templates/AGENTS.dream-team.md`.
-  Установка: `install.sh` (DREAM_TEAM_HARNESS=mahcode, по умолчанию) и `install.ps1` (Windows).
-- Уроки: на внешних движках `@скил` не подмешивается (вход через AGENTS.md) и steer в текущий ход
-  не доходит → сигналы файлами: `inbox/` (команды менеджеру, пишет любая сессия) и `interrupt.md`
-  (менеджер → лид). Движки рвут MCP-вызов через 300 с → `wait_for_session` только по ≤ 60 с.
-- MCP mahcode зарегистрирован глобально: ~/.codex/config.toml, ~/.claude.json,
-  ~/.gemini/antigravity/mcp_config.json (бэкапы *.bak-20261121-*).
-- Живые тесты (scratchpad mc-e2e2/3, менеджер+лиды codex/gpt-6-luna, роли wirellm/main):
-  plan → code (волны) → test → done; `add:` из отдельной сессии → inbox → interrupt → переплан →
-  Seq реализован. `issue:` в тесте потерялся: приёмщик на wirellm/main записал файл не по формату
-  и сам начал писать код → менеджер теперь разбирает inbox по содержимому, запрет в intake
-  ужесточён. Повторно путь issue → цикл 2 НЕ прогонялся.
-- mahcode (сессия c1caad): починены сабагенты на внешних движках (3948adc, нужен рестарт демона);
-  профиль для primary-сессий и проброс MCP внешним движкам — ждут решения пользователя.
+  Install: `install.sh` (DREAM_TEAM_HARNESS=mahcode, the default) and `install.ps1` (Windows).
+- Lessons: on external engines `@skill` is not injected (entry through AGENTS.md) and steer into the current turn
+  does not arrive → signals via files: `inbox/` (commands to the manager, any session writes them) and `interrupt.md`
+  (manager → lead). Engines cut an MCP call after 300 s → `wait_for_session` only in ≤ 60 s chunks.
+- The mahcode MCP is registered globally: ~/.codex/config.toml, ~/.claude.json,
+  ~/.gemini/antigravity/mcp_config.json (backups *.bak-20261121-*).
+- Live tests (scratchpad mc-e2e2/3, manager+leads codex/gpt-6-luna, roles wirellm/main):
+  plan → code (waves) → test → done; `add:` from a separate session → inbox → interrupt → replan →
+  Seq implemented. `issue:` got lost in the test: the intake session on wirellm/main wrote the file in the wrong format
+  and started writing code itself → the manager now parses the inbox by content, the prohibition in intake
+  is tightened. The issue → cycle 2 path has NOT been re-run.
+- mahcode (session c1caad): subagents on external engines fixed (3948adc / 0a3f9d1, daemon restarted);
+  the agent profile for primary sessions and MCP passthrough to external engines — await the user's decision.
+
+## v5: everything in English (2026-11-24)
+- All prompts, skills, agents, commands, script messages, tests and docs translated to English: fewer
+  tokens per turn. Agents reply to the user in the user's language (manager.md, agent-manager.md).
+- Coupled strings changed together: `## User text` (dt.sh intake ↔ dt-lib.sh user_text), `EXACTLY into the file`
+  (dt-run.sh prompt ↔ tests/bin/opencode), `AMENDMENT`/`STOP` in interrupt.md (manager.md ↔ lead.md),
+  "You are the LEAD of the … pair" / "You are the "…" role" (manager.md / lead.md ↔ AGENTS template).
+- `bash tests/run.sh` — 10/10 after the translation. Already-installed projects need `install.sh` re-run
+  to pick up the new AGENTS.md block (it replaces the block by markers).

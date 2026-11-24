@@ -1,5 +1,5 @@
 ---
-description: "dream-team: новая задача (текст или @файл; --force — поверх незаконченной)"
+description: "dream-team: new task (text or @file; --force — over an unfinished one)"
 agent: agent-manager
 ---
 <dt-out>
@@ -8,4 +8,4 @@ agent: agent-manager
 DT_EOF`
 </dt-out>
 
-Перескажи пользователю текст из блока dt-out дословно. Больше ничего не делай: ни файлов, ни команд, ни ролей.
+Relay the text from the dt-out block to the user verbatim. Do nothing else: no files, no commands, no roles.

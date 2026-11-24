@@ -1,54 +1,54 @@
 <!-- agent-pipeline handoff & context-hygiene protocol -->
 <purpose>
-Единый протокол передачи работы между агентами. Гарантирует: контекст НЕ теряется
-(всё важное на диске) и НЕ переполняется (каждая роль поднимается с чистого контекста,
-читает только свой handoff + явно названные артефакты).
+A single protocol for passing work between agents. Guarantees: context is NOT lost
+(everything important is on disk) and does NOT overflow (each role starts from a clean context,
+reads only its handoff + explicitly named artifacts).
 </purpose>
 
 <core_rules>
 
-### 1. Каждая роль работает в СВЕЖЕМ контексте
+### 1. Every role works in a FRESH context
 
-Роль — это opencode subagent. При запуске у неё пустой контекст. Она НЕ видит
-предыдущий диалог и контекст других ролей. Единственный вход:
+A role is an opencode subagent. At launch its context is empty. It does NOT see
+the previous dialogue or the context of other roles. The only input:
 
-- путь к входному handoff-файлу (его даёт Менеджер в prompt),
-- артефакты, перечисленные в разделе `ARTIFACTS` этого handoff.
+- the path to the input handoff file (the Manager gives it in the prompt),
+- the artifacts listed in the `ARTIFACTS` section of that handoff.
 
-Роль читает ТОЛЬКО это (плюс свой guide). Ничего больше в контекст не тянуть.
+The role reads ONLY that (plus its guide). Pull nothing else into context.
 
-### 2. Перед передачей — обязательный handoff
+### 2. Before passing on — a mandatory handoff
 
-Прежде чем завершиться, роль ПИШЕТ файл handoff (формат ниже). Это полный слепок:
-что сделано, где лежит результат, что делать следующему. После записи роль возвращает
-Менеджеру ТОЛЬКО одну короткую строку-квитанцию:
+Before finishing, the role WRITES a handoff file (format below). It is a full snapshot:
+what was done, where the result is, what the next one should do. After writing, the role returns
+to the Manager ONLY one short receipt line:
 
 ```
 status=<status> handoff=.planning/dream-team/handoffs/step-NN-<role>.md
 ```
 
-НЕ вываливать в ответ тело артефактов, дифы, логи — всё это уже на диске и в handoff.
-Короткая квитанция = контекст Менеджера не растёт.
+Do NOT dump artifact bodies, diffs, logs into the reply — all of that is already on disk and in
+the handoff. A short receipt = the Manager's context does not grow.
 
-### 3. Менеджер не грузит артефакты в свой контекст
+### 3. The Manager does not load artifacts into its context
 
-Менеджер читает только: `pipeline-state.json`, разделы `STATUS` и `FOR NEXT AGENT`
-входных handoff. Полные планы/дифы/отчёты он НЕ читает — передаёт их следующей роли
-по пути. Так контекст primary-агента остаётся маленьким весь пайплайн.
+The Manager reads only: `pipeline-state.json`, the `STATUS` and `FOR NEXT AGENT` sections
+of input handoffs. Full plans/diffs/reports it does NOT read — it passes them to the next role
+by path. So the primary agent's context stays small for the whole pipeline.
 
-### 4. Диск — единственная общая память
+### 4. Disk is the only shared memory
 
-Общение между ролями и парами только через файлы в `.planning/dream-team/`.
-Если чего-то нет в handoff или артефактах — значит этого не существует для следующей
-роли. Роль, которая что-то не записала, обязана вернуться и дописать, а не надеяться
-на «контекст».
+Roles and pairs communicate only through files in `.planning/dream-team/`.
+If something is not in the handoff or artifacts — it does not exist for the next
+role. A role that failed to write something must come back and write it, not rely
+on "context".
 
 </core_rules>
 
 <handoff_format>
 
-Путь: `.planning/dream-team/handoffs/step-NN-<role>.md`
-(`NN` — глобальный счётчик шага из `pipeline-state.json.step`, с ведущим нулём.)
+Path: `.planning/dream-team/handoffs/step-NN-<role>.md`
+(`NN` — global step counter from `pipeline-state.json.step`, zero-padded.)
 
 ```markdown
 # Handoff: <role> → <next-role|manager> (pair: <plan|code|test>, iter <n>)
@@ -59,41 +59,41 @@ status=<status> handoff=.planning/dream-team/handoffs/step-NN-<role>.md
 
 ## DONE
 
-- Конкретно что сделано на этом шаге (1–7 пунктов, по делу).
+- Concretely what was done in this step (1–7 items, to the point).
 
-## ARTIFACTS (читать ТОЛЬКО это, больше ничего не нужно)
+## ARTIFACTS (read ONLY these, nothing else is needed)
 
-- `path/to/file` — одной строкой что это и зачем следующему.
+- `path/to/file` — one line: what it is and why the next one needs it.
 
 ## FOR NEXT AGENT
 
-- Точная инструкция: что сделать дальше, на что смотреть в первую очередь.
+- Exact instruction: what to do next, what to look at first.
 
 ## OPEN / RISKS
 
-- Нерешённое, допущения, места под сомнением (или «нет»).
+- Unresolved items, assumptions, doubtful spots (or "none").
 
 ## CONTEXT RESET
 
-Этот handoff + перечисленные ARTIFACTS = ВСЁ, что нужно. Предыдущий диалог не требуется
-и недоступен. Поднимайся с чистого контекста.
+This handoff + the listed ARTIFACTS = EVERYTHING needed. The previous dialogue is not required
+and not available. Start from a clean context.
 ```
 
 </handoff_format>
 
 <status_values>
-- `done` — doer закончил свою итерацию, передаёт critic'у на оценку.
-- `needs-revision` — critic нашёл проблемы, возвращает doer'у на доработку.
-- `approved` — critic согласен, в паре достигнут консенсус (plan/code).
-- `bugs-found` — пара test: tester+debugger согласны, что есть подтверждённые баги.
-- `clean` — пара test: подтверждённых багов нет, всё работает.
-- `rejected` — грубое несоответствие, нужна эскалация.
-- `blocked` — роль не может продолжить (неоднозначность/ошибка среды) → Менеджеру на эскалацию.
+- `done` — the doer finished its iteration, passes to the critic for assessment.
+- `needs-revision` — the critic found problems, returns to the doer for rework.
+- `approved` — the critic agrees, the pair reached consensus (plan/code).
+- `bugs-found` — test pair: tester+debugger agree there are confirmed bugs.
+- `clean` — test pair: no confirmed bugs, everything works.
+- `rejected` — gross mismatch, escalation needed.
+- `blocked` — the role cannot continue (ambiguity/environment error) → to the Manager for escalation.
 </status_values>
 
 <context_budget>
-Признаки переполнения (роль обязана сжиматься, а не раздувать):
-- Ответ Менеджеру длиннее ~3 строк → нарушение, вернуть только квитанцию.
-- Handoff длиннее ~1 экрана → вынести детали в артефакт, в handoff оставить ссылку.
-- Роль читает файлы, не указанные в её ARTIFACTS → нарушение гигиены контекста.
+Signs of overflow (the role must compress, not bloat):
+- Reply to the Manager longer than ~3 lines → violation, return only the receipt.
+- Handoff longer than ~1 screen → move details to an artifact, leave a link in the handoff.
+- The role reads files not listed in its ARTIFACTS → context hygiene violation.
 </context_budget>

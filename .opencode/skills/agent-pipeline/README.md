@@ -1,125 +1,125 @@
-# Agent Pipeline — парный агентский пайплайн для OpenCode
+# Agent Pipeline — paired agent pipeline for OpenCode
 
-## Обзор
+## Overview
 
-Разработка через три антагонистичные пары ролей, которыми диспетчеризует Менеджер.
-Каждая роль — отдельный opencode **subagent** со свежим контекстом; роли общаются только
-через файлы на диске (handoff + артефакты), поэтому контекст не теряется и не переполняется.
+Development through three antagonistic role pairs, dispatched by the Manager.
+Each role is a separate opencode **subagent** with a fresh context; roles communicate only
+through files on disk (handoff + artifacts), so context is neither lost nor overflowed.
 
 ```
-                 Менеджер (primary, диспетчер)
-         раздаёт задачи, крутит пары, маршрутизирует
+                 Manager (primary, dispatcher)
+         hands out tasks, runs pairs, routes
           │                  │                   │
-      пара PLAN          пара CODE           пара TEST
+      PLAN pair          CODE pair           TEST pair
    planner ⇄ critic   coder ⇄ reviewer   tester ⇄ debugger
     (doer ⇄ critic)    (doer ⇄ critic)    (doer ⇄ critic)
           │                  │                   │
-     plan.md подписан   код одобрен        вердикт: clean / bugs-found
+     plan.md signed     code approved      verdict: clean / bugs-found
           └──────────────────┴───────────────────┘
-                 всё возвращается Менеджеру,
-       он решает переход к следующей паре (или done/coding)
+                 everything returns to the Manager,
+       it decides the transition to the next pair (or done/coding)
 ```
 
-Внутри пары doer и critic — антагонисты: doer делает, critic критикует, цикл до согласия.
-Только после консенсуса пара отдаёт Менеджеру результат «готово, согласовано», и Менеджер
-маршрутизирует дальше. Менеджер **внутрь пары не вмешивается** — он лишь механически гоняет
-цикл по STATUS в handoff (ограничение opencode: вложенность subagent = 1 уровень, поэтому
-цикл физически крутит primary, но как тупой диспетчер).
+Inside a pair the doer and critic are antagonists: the doer does, the critic criticizes, loop until agreement.
+Only after consensus does the pair hand the Manager a "done, agreed" result, and the Manager
+routes further. The Manager **does not interfere inside a pair** — it only mechanically runs
+the loop by the STATUS in the handoff (opencode limitation: subagent nesting = 1 level, so
+the primary physically runs the loop, but as a dumb dispatcher).
 
-## Роли (opencode агенты)
+## Roles (opencode agents)
 
-| Роль         | Агент (`.opencode/agents/`) | Пара | Функция в паре | Ответственность                                      |
-| ------------ | --------------------------- | ---- | -------------- | ---------------------------------------------------- |
-| **Manager**  | `agent-manager` (primary)   | —    | диспетчер      | раздаёт задачи, крутит пары, роутит, финал/эскалация |
-| **Planner**  | `agent-planner`             | plan | doer           | декомпозиция на фазы/волны/задачи, TDD-стратегия     |
-| **Critic**   | `agent-critic`              | plan | critic         | безжалостный аудит плана, поиск всех проблем         |
-| **Coder**    | `agent-coder`               | code | doer           | реализация по TDD, атомарные коммиты                 |
-| **Reviewer** | `agent-reviewer`            | code | critic         | линт, стиль, дубликаты, мёртвый код, SOLID, план     |
-| **Tester**   | `agent-tester`              | test | doer           | E2E, edge, негатив, security, нагрузка               |
-| **Debugger** | `agent-debugger`            | test | critic         | root cause, подтверждение/опровержение, баг-репорты  |
+| Role         | Agent (`.opencode/agents/`) | Pair | Function in pair | Responsibility                                     |
+| ------------ | --------------------------- | ---- | ---------------- | -------------------------------------------------- |
+| **Manager**  | `agent-manager` (primary)   | —    | dispatcher       | hands out tasks, runs pairs, routes, final/escalation |
+| **Planner**  | `agent-planner`             | plan | doer             | decomposition into phases/waves/tasks, TDD strategy |
+| **Critic**   | `agent-critic`              | plan | critic           | ruthless plan audit, finding all problems          |
+| **Coder**    | `agent-coder`               | code | doer             | TDD implementation, atomic commits                 |
+| **Reviewer** | `agent-reviewer`            | code | critic           | lint, style, duplicates, dead code, SOLID, plan    |
+| **Tester**   | `agent-tester`              | test | doer             | E2E, edge, negative, security, load                |
+| **Debugger** | `agent-debugger`            | test | critic           | root cause, confirm/refute, bug reports            |
 
-Детальные правила ремесла каждой роли — в `.opencode/skills/agent-<role>/` (SKILL.md + guide),
-агент их читает как reference.
+Each role's detailed craft rules are in `.opencode/skills/agent-<role>/` (SKILL.md + guide);
+the agent reads them as a reference.
 
-## Ключевые принципы
+## Key principles
 
-1. **Антагонистичные пары** — doer делает, critic критикует, до согласия обоих.
-2. **Менеджер — диспетчер, не судья** — качество оценивают critic/reviewer/debugger, не он.
-3. **Свежий контекст у каждой роли** — роль = subagent, поднимается с нуля, читает только
-   свой handoff + названные артефакты.
-4. **Handoff после каждого шага** — перед передачей роль пишет полный статус+handoff; всё
-   важное на диске, контекст не теряется и не переполняется.
-5. **TDD строго** — Кодер пишет падающий тест ПЕРВЫМ.
-6. **Critic/Reviewer/Debugger не правят** — только указывают; правит doer.
-7. **Клятвы на крови** — Critic, Reviewer, Debugger подписывают результаты.
-8. **Stall detection** — роль=blocked или пара не сошлась за `max_pair_iters` → blocked.
+1. **Antagonistic pairs** — the doer does, the critic criticizes, until both agree.
+2. **The Manager is a dispatcher, not a judge** — quality is assessed by critic/reviewer/debugger, not by it.
+3. **Fresh context for every role** — role = subagent, starts from scratch, reads only
+   its handoff + the named artifacts.
+4. **Handoff after every step** — before handing over the role writes a full status+handoff; everything
+   important is on disk, context is neither lost nor overflowed.
+5. **Strict TDD** — the Coder writes the failing test FIRST.
+6. **Critic/Reviewer/Debugger do not fix** — they only point out; the doer fixes.
+7. **Blood oaths** — Critic, Reviewer, Debugger sign their results.
+8. **Stall detection** — role=blocked or the pair did not converge within `max_pair_iters` → blocked.
 
-## Запуск
+## Launch
 
-Менеджер — primary-агент (не skill):
+The Manager is a primary agent (not a skill):
 
 ```bash
-cd <корень-проекта>   # каталог, где лежит .opencode/
+cd <project-root>   # directory containing .opencode/
 
-# новый прогон
-opencode run --agent agent-manager "Создать REST API для пользователей с JWT авторизацией"
+# new run
+opencode run --agent agent-manager "Create a REST API for users with JWT authorization"
 
-# продолжить прерванный
+# resume an interrupted one
 opencode run --agent agent-manager "resume"
 ```
 
-или интерактивно: запустить opencode, переключить агента на `agent-manager`, дать задачу.
-Справка-обёртка: skill `/agent-pipeline-run`.
+or interactively: start opencode, switch the agent to `agent-manager`, give the task.
+Wrapper reference: skill `/agent-pipeline-run`.
 
-## Артефакты (в `.planning/agent-pipeline/`)
+## Artifacts (in `.planning/agent-pipeline/`)
 
 ```
-pipeline-state.json      # Состояние (единственный источник истины)
-task-context.md          # Задача дословно + как понята
+pipeline-state.json      # State (single source of truth)
+task-context.md          # Task verbatim + how it was understood
 handoffs/
-  step-00-manager.md     # Handoff каждого шага (статус, что сделано, что дальше)
+  step-00-manager.md     # Handoff of each step (status, what was done, what is next)
   step-01-planner.md
   ...
-plan-draft.md            # Черновик плана (пара plan)
-plan.md                  # Итоговый план (после approval planner+critic)
-critique.md              # Замечания Критика
-approval-planner.md      # Подпись Планировщика
-approval-critic.md       # Подпись Критика (клятва)
-code-summary.md          # Отчёт Кодера
-review-report.md         # Замечания Ревьювера
-approval-reviewer.md     # Подпись Ревьювера
-test-report.md           # Отчёт Тестировщика (FAIL-кейсы)
-debug-report.md          # Расследование Дебаггера
-clean-report.md          # Чистый отчёт (багов нет)
+plan-draft.md            # Plan draft (plan pair)
+plan.md                  # Final plan (after planner+critic approval)
+critique.md              # Critic's remarks
+approval-planner.md      # Planner's signature
+approval-critic.md       # Critic's signature (oath)
+code-summary.md          # Coder's report
+review-report.md         # Reviewer's remarks
+approval-reviewer.md     # Reviewer's signature
+test-report.md           # Tester's report (FAIL cases)
+debug-report.md          # Debugger's investigation
+clean-report.md          # Clean report (no bugs)
 bug-reports/
-  bug-001.md             # Подтверждённый баг с детерминированным repro
+  bug-001.md             # Confirmed bug with a deterministic repro
   ...
-archive/                 # Куда Менеджер архивирует артефакты по завершении
+archive/                 # Where the Manager archives artifacts on completion
 ```
 
-## State machine (между парами)
+## State machine (between pairs)
 
 ```
 init → planning → coding → testing → done
                     ▲          │
                     └──────────┘
-                 bugs-found (снова пара code)
+                 bugs-found (code pair again)
 
-planning: пара plan крутится до approval-critic + approval-planner
-coding:   пара code крутится до approval-reviewer (по волнам)
-testing:  пара test крутится до согласованного вердикта (clean | bugs-found)
+planning: the plan pair loops until approval-critic + approval-planner
+coding:   the code pair loops until approval-reviewer (by waves)
+testing:  the test pair loops until an agreed verdict (clean | bugs-found)
 ```
 
-Цикл ВНУТРИ пары (doer→critic→doer…) — в `pair-protocol.md`, тут не показан.
+The loop INSIDE a pair (doer→critic→doer…) — in `pair-protocol.md`, not shown here.
 
-## Документы протокола
+## Protocol documents
 
-- `workflow.md` — обзор архитектуры и контрактов пар
-- `state-machine.md` — стадии, переходы между парами, схема pipeline-state.json (v2)
-- `pair-protocol.md` — механика цикла doer↔critic и консенсуса
-- `handoff-protocol.md` — формат handoff, гигиена контекста (не терять / не переполнять)
+- `workflow.md` — architecture overview and pair contracts
+- `state-machine.md` — stages, transitions between pairs, pipeline-state.json schema (v2)
+- `pair-protocol.md` — doer↔critic loop and consensus mechanics
+- `handoff-protocol.md` — handoff format, context hygiene (do not lose / do not overflow)
 
-## Конфигурация (в pipeline-state.json)
+## Configuration (in pipeline-state.json)
 
 ```json
 {
@@ -133,30 +133,30 @@ testing:  пара test крутится до согласованного ве�
 }
 ```
 
-## Структура
+## Structure
 
 ```
 .opencode/
-├── agents/                      # Исполняемые роли (opencode subagents)
-│   ├── agent-manager.md         #   primary — диспетчер
-│   ├── agent-planner.md         #   subagent (пара plan, doer)
-│   ├── agent-critic.md          #   subagent (пара plan, critic)
-│   ├── agent-coder.md           #   subagent (пара code, doer)
-│   ├── agent-reviewer.md        #   subagent (пара code, critic)
-│   ├── agent-tester.md          #   subagent (пара test, doer)
-│   └── agent-debugger.md        #   subagent (пара test, critic)
+├── agents/                      # Executable roles (opencode subagents)
+│   ├── agent-manager.md         #   primary — dispatcher
+│   ├── agent-planner.md         #   subagent (plan pair, doer)
+│   ├── agent-critic.md          #   subagent (plan pair, critic)
+│   ├── agent-coder.md           #   subagent (code pair, doer)
+│   ├── agent-reviewer.md        #   subagent (code pair, critic)
+│   ├── agent-tester.md          #   subagent (test pair, doer)
+│   └── agent-debugger.md        #   subagent (test pair, critic)
 └── skills/
-    ├── agent-pipeline/          # Протоколы и обзор
+    ├── agent-pipeline/          # Protocols and overview
     │   ├── README.md
     │   ├── workflow.md
     │   ├── pair-protocol.md
     │   └── handoff-protocol.md
-    ├── agent-pipeline-run/      # Точка входа (как запустить менеджера)
+    ├── agent-pipeline-run/      # Entry point (how to launch the manager)
     │   └── SKILL.md
-    ├── agent-manager/           # Справка + state-machine
+    ├── agent-manager/           # Reference + state machine
     │   ├── SKILL.md
     │   └── state-machine.md
-    ├── agent-planner/           # Craft-reference ролей
+    ├── agent-planner/           # Role craft references
     │   ├── SKILL.md
     │   └── planning-guide.md
     ├── agent-critic/

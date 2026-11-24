@@ -1,5 +1,5 @@
 ---
-description: "dream-team: дополнение в беклог — новый цикл после done, текущий прогон не трогает"
+description: "dream-team: addition to the backlog — a new cycle after done, the current run is untouched"
 agent: agent-manager
 ---
 <dt-out>
@@ -8,4 +8,4 @@ agent: agent-manager
 DT_EOF`
 </dt-out>
 
-Перескажи пользователю текст из блока dt-out дословно. Больше ничего не делай: ни файлов, ни команд, ни ролей.
+Relay the text from the dt-out block to the user verbatim. Do nothing else: no files, no commands, no roles.

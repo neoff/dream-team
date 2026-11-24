@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# dream-team — установщик агентского пайплайна (install == update, одна команда).
+# dream-team — agent pipeline installer (install == update, one command).
 #
 #   curl -fsSL https://raw.githubusercontent.com/neoff/dream-team/main/install.sh | bash
 #
-# Интерактивно спросит: харнес (opencode / claude / оба) и область (global / local).
-# Неинтерактивно (пайп без tty) берёт переменные окружения / значения по умолчанию:
+# Interactively asks: harness (mahcode / opencode / claude / both) and scope (global / local).
+# Non-interactively (pipe without a tty) takes environment variables / defaults:
 #   DREAM_TEAM_HARNESS=mahcode|opencode|claude|both   (default: mahcode)
 #   DREAM_TEAM_SCOPE=global|local             (default: local)
 #   DREAM_TEAM_BRANCH=main
@@ -15,7 +15,7 @@ set -euo pipefail
 REPO="neoff/dream-team"
 BRANCH="${DREAM_TEAM_BRANCH:-main}"
 
-# Что именно ставим (только наши файлы — чужие агенты/скилы в целевой папке не трогаем).
+# What exactly we install (only our files — other agents/skills in the target folder are left alone).
 AGENTS=(agent-manager agent-planner agent-critic agent-coder agent-reviewer agent-tester agent-debugger)
 SKILLS=(agent-pipeline agent-pipeline-run agent-manager agent-planner agent-critic agent-coder agent-reviewer agent-tester agent-debugger)
 COMMANDS=(dt dt-resume dt-new dt-issue dt-add dt-status dt-stop dt-log)
@@ -31,7 +31,7 @@ die(){  printf "${c_err}✗${c_off} %s\n" "$*" >&2; exit 1; }
 
 have_tty(){ [ -r /dev/tty ] && [ -w /dev/tty ]; }
 
-# Меню: $1 = текст, далее пары "value|label"; эхо выбранного value.
+# Menu: $1 = text, then "value|label" pairs; echoes the chosen value.
 menu(){
   local prompt="$1"; shift
   local vals=() labels=() i
@@ -48,29 +48,29 @@ menu(){
   printf '%s' "${vals[$((choice-1))]}"
 }
 
-# ---- 1. выбор харнеса и области -------------------------------------------
+# ---- 1. choose harness and scope -------------------------------------------
 HARNESS="${DREAM_TEAM_HARNESS:-}"
 SCOPE="${DREAM_TEAM_SCOPE:-}"
 
 if [ -z "$HARNESS" ]; then
   if have_tty; then
-    HARNESS="$(menu "Для какого харнеса ставить?" "mahcode|mahcode (MCP-версия: менеджер + лиды пар)" "opencode|opencode (bash-оркестратор)" "claude|claude (не тестировалось)" "both|opencode + claude")"
+    HARNESS="$(menu "Which harness to install for?" "mahcode|mahcode (MCP version: manager + pair leads)" "opencode|opencode (bash orchestrator)" "claude|claude (untested)" "both|opencode + claude")"
   else
     HARNESS="mahcode"
   fi
 fi
 if [ -z "$SCOPE" ]; then
   if have_tty; then
-    SCOPE="$(menu "Куда ставить?" "local|local — в текущий проект ($(pwd))" "global|global — для всех проектов")"
+    SCOPE="$(menu "Where to install?" "local|local — into the current project ($(pwd))" "global|global — for all projects")"
   else
     SCOPE="local"
   fi
 fi
 
-case "$HARNESS" in mahcode|opencode|claude|both) ;; *) die "неизвестный харнес: $HARNESS";; esac
-case "$SCOPE" in local|global) ;; *) die "неизвестная область: $SCOPE";; esac
+case "$HARNESS" in mahcode|opencode|claude|both) ;; *) die "unknown harness: $HARNESS";; esac
+case "$SCOPE" in local|global) ;; *) die "unknown scope: $SCOPE";; esac
 
-targets_for(){ # $1 harness -> эхо базовой папки по $SCOPE
+targets_for(){ # $1 harness -> echo the base folder for $SCOPE
   case "$1" in
     opencode) [ "$SCOPE" = global ] && printf '%s' "$HOME/.config/opencode" || printf '%s' "$PWD/.opencode" ;;
     claude)   [ "$SCOPE" = global ] && printf '%s' "$HOME/.claude"         || printf '%s' "$PWD/.claude" ;;
@@ -79,22 +79,22 @@ targets_for(){ # $1 harness -> эхо базовой папки по $SCOPE
 
 HLIST=(); case "$HARNESS" in mahcode) HLIST=(mahcode);; opencode) HLIST=(opencode);; claude) HLIST=(claude);; both) HLIST=(opencode claude);; esac
 
-# ---- 2. выкачать репо во временную папку ----------------------------------
+# ---- 2. fetch the repo into a temp folder ----------------------------------
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-info "Качаю $REPO@$BRANCH …"
+info "Fetching $REPO@$BRANCH …"
 if command -v git >/dev/null 2>&1; then
-  git clone --depth 1 -b "$BRANCH" "https://github.com/$REPO.git" "$TMP/src" -q || die "git clone не удался"
+  git clone --depth 1 -b "$BRANCH" "https://github.com/$REPO.git" "$TMP/src" -q || die "git clone failed"
   SRC="$TMP/src"
 elif command -v curl >/dev/null 2>&1; then
-  curl -fsSL "https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH" | tar xz -C "$TMP" || die "скачивание tarball не удалось"
+  curl -fsSL "https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH" | tar xz -C "$TMP" || die "tarball download failed"
   SRC="$TMP/dream-team-$BRANCH"
 else
-  die "нужен git или curl"
+  die "git or curl is required"
 fi
-[ -d "$SRC/.opencode/agents" ] || die "в репо не найден .opencode/agents (битая выкачка?)"
+[ -d "$SRC/.opencode/agents" ] || die ".opencode/agents not found in the repo (broken download?)"
 
-# ---- 3. установка (перезапись = апдейт) -----------------------------------
-install_into(){ # $1 = базовая целевая папка
+# ---- 3. install (overwrite = update) -----------------------------------
+install_into(){ # $1 = base target folder
   local base="$1" a s
   mkdir -p "$base/agents" "$base/skills" "$base/commands"
   for a in "${AGENTS[@]}"; do
@@ -109,9 +109,9 @@ install_into(){ # $1 = базовая целевая папка
   done
 }
 
-# .gitignore для локальной установки: если есть .gitignore ИЛИ проект под git —
-# занести установленные пути (идемпотентный блок с маркерами).
-ensure_gitignore(){ # $1 = имя целевой папки, напр. .opencode / .claude
+# .gitignore for a local install: if there is a .gitignore OR the project is under git —
+# add the installed paths (idempotent block with markers).
+ensure_gitignore(){ # $1 = target folder name, e.g. .opencode / .claude
   local dir="$1" gi="$PWD/.gitignore"
   local is_git=0; git -C "$PWD" rev-parse --is-inside-work-tree >/dev/null 2>&1 && is_git=1
   { [ -f "$gi" ] || [ "$is_git" = 1 ]; } || return 0
@@ -131,7 +131,7 @@ ensure_gitignore(){ # $1 = имя целевой папки, напр. .opencode
   block+=".planning/"$'\n'
   block+="$GI_END"
   touch "$gi"
-  # вырезать старый блок (если был) и дописать свежий
+  # cut out the old block (if any) and append a fresh one
   if grep -qF "$GI_BEGIN" "$gi"; then
     local tmp; tmp="$(mktemp)"
     awk -v b="$GI_BEGIN" -v e="$GI_END" '
@@ -139,56 +139,56 @@ ensure_gitignore(){ # $1 = имя целевой папки, напр. .opencode
     mv "$tmp" "$gi"
   fi
   printf '%s\n' "$block" >> "$gi"
-  ok "В .gitignore занесён блок dream-team ($dir)"
+  ok "dream-team block added to .gitignore ($dir)"
 }
 
-# mahcode: только markdown + MCP (без bash в рантайме). Всегда в проект (cwd).
+# mahcode: markdown + MCP only (no bash at runtime). Always into the project (cwd).
 install_mahcode(){
   local dst="$PWD/.mahcode" s
   mkdir -p "$dst/skills"
   for s in dream-team agent-planner agent-critic agent-coder agent-reviewer agent-tester agent-debugger; do
     rm -rf "$dst/skills/$s"; cp -R "$SRC/.mahcode/skills/$s" "$dst/skills/$s"
   done
-  if [ -f "$dst/dream-team.yaml" ]; then ok "dream-team.yaml уже есть — модели проекта не трогаю"
-  else cp "$SRC/.mahcode/dream-team.yaml" "$dst/dream-team.yaml"; ok "создан .mahcode/dream-team.yaml (модели — поправь под проект)"; fi
-  # AGENTS.md: блок-вход (идемпотентно, по маркерам)
+  if [ -f "$dst/dream-team.yaml" ]; then ok "dream-team.yaml already exists — leaving the project's models alone"
+  else cp "$SRC/.mahcode/dream-team.yaml" "$dst/dream-team.yaml"; ok "created .mahcode/dream-team.yaml (adjust the models for the project)"; fi
+  # AGENTS.md: entry block (idempotent, by markers)
   local ag="$PWD/AGENTS.md" tmp
   touch "$ag"
   if grep -qF '<!-- >>> dream-team >>> -->' "$ag"; then
     tmp="$(mktemp)"; awk '/<!-- >>> dream-team >>> -->/{skip=1} !skip{print} /<!-- <<< dream-team <<< -->/{skip=0}' "$ag" > "$tmp"; mv "$tmp" "$ag"
   fi
   printf '\n' >> "$ag"; cat "$SRC/.mahcode/templates/AGENTS.dream-team.md" >> "$ag"
-  ok "AGENTS.md: вход @dream-team"
-  # .mcp.json: MCP mahcode для нативных сессий проекта
+  ok "AGENTS.md: @dream-team entry"
+  # .mcp.json: mahcode MCP for the project's native sessions
   if [ ! -f "$PWD/.mcp.json" ]; then
     printf '{ "mcpServers": { "mahcode": { "command": "mahcode", "args": ["mcp", "serve"] } } }\n' > "$PWD/.mcp.json"
   elif ! grep -q '"mahcode"' "$PWD/.mcp.json"; then
-    warn ".mcp.json уже есть — добавь сервер mahcode (command: mahcode, args: [mcp, serve]) вручную"
+    warn ".mcp.json already exists — add the mahcode server (command: mahcode, args: [mcp, serve]) manually"
   fi
   command -v mahcode >/dev/null 2>&1 && (cd "$PWD" && mahcode mcp trust >/dev/null) && ok "mahcode mcp trust"
-  warn "чтобы менеджер/лиды работали на codex/claude/agy, зарегистрируй MCP mahcode в их конфигах (см. README)"
+  warn "for the manager/leads to work on codex/claude/agy, register the mahcode MCP in their configs (see README)"
 }
 
 for h in "${HLIST[@]}"; do
-  if [ "$h" = mahcode ]; then info "Ставлю [mahcode] → $PWD/.mahcode"; install_mahcode; continue; fi
+  if [ "$h" = mahcode ]; then info "Installing [mahcode] → $PWD/.mahcode"; install_mahcode; continue; fi
   base="$(targets_for "$h")"
-  info "Ставлю [$h / $SCOPE] → $base"
+  info "Installing [$h / $SCOPE] → $base"
   install_into "$base"
-  [ "$h" = claude ] && warn "claude: формат агентов opencode-специфичен (mode/permissions/subagent) — на Claude Code не тестировалось."
-  ok "Установлено: ${#AGENTS[@]} агентов + ${#SKILLS[@]} скилов + ${#COMMANDS[@]} команд в $base"
+  [ "$h" = claude ] && warn "claude: the agent format is opencode-specific (mode/permissions/subagent) — untested on Claude Code."
+  ok "Installed: ${#AGENTS[@]} agents + ${#SKILLS[@]} skills + ${#COMMANDS[@]} commands into $base"
   if [ "$SCOPE" = local ]; then
     case "$h" in opencode) ensure_gitignore ".opencode";; claude) ensure_gitignore ".claude";; esac
   fi
 done
 
-# ---- 4. итог ---------------------------------------------------------------
-printf "\n${c_ok}Готово.${c_off} Запуск:\n"
+# ---- 4. summary ---------------------------------------------------------------
+printf "\n${c_ok}Done.${c_off} Launch:\n"
 if printf '%s\n' "${HLIST[@]}" | grep -qx opencode; then
   printf "  ${c_dim}# opencode${c_off}\n"
-  printf "  ${c_dim}# в TUI opencode:${c_off} /dt-new <задача|@файл> · /dt · /dt-add · /dt-issue · /dt-status · /dt-stop\n"
+  printf "  ${c_dim}# in the opencode TUI:${c_off} /dt-new <task|@file> · /dt · /dt-add · /dt-issue · /dt-status · /dt-stop\n"
   if [ "$SCOPE" = global ]; then dtcli="$HOME/.config/opencode/skills/agent-manager/dt-cli.sh"; else dtcli=".opencode/skills/agent-manager/dt-cli.sh"; fi
-  printf "  ${c_dim}# из терминала:${c_off} alias dt='bash %s'\n" "$dtcli"
+  printf "  ${c_dim}# from the terminal:${c_off} alias dt='bash %s'\n" "$dtcli"
   printf "  dt --new @prompt.md   ·   dt   ·   dt --status   ·   dt --log -f   ·   dt --stop\n"
 fi
-printf "\nОбновление — та же команда:\n"
+printf "\nUpdate — the same command:\n"
 printf "  curl -fsSL https://raw.githubusercontent.com/%s/%s/install.sh | bash\n" "$REPO" "$BRANCH"
